@@ -1,17 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
 #include <windows.h>
+#include <conio.h>
+#include <unistd.h>
+#include <math.h>
+
+#define RETURN_TO_MAIN_MENU (-1)
 
 int map_size, num_of_ships;
-
-char **revealed_map1, **revealed_map2, **concealed_map1, **concealed_map2;
 
 typedef struct Ship {
     struct Ship *next_ship;
     int len;
 } Ship;
+
+typedef struct {
+    char name[100];
+    Ship *ships;
+    char **revealed_map;
+    char **concealed_map;
+    long score;
+} Player;
+Player player1, player2;
+
+typedef struct {
+    int row, column;
+} Square;
+
+enum {
+    UP, RIGHT, DOWN, LEFT
+};
 
 void main_menu();
 
@@ -33,11 +54,7 @@ void use_radar();
 
 void bombard();
 
-void auto_place_ships(char **map);
-
-void save_map(char **map);
-
-void load_ships_arrangement();
+void load_map();
 
 bool is_valid_placement();
 
@@ -59,11 +76,16 @@ void display_scoreboard();
 
 void change_settings();
 
-int main() {
-    printf("Welcome to sea battle!\n");
-
+void main_menu() {
     for (;;) {
-        main_menu();
+        printf("1.Play vs computer\n"
+               "2.Play vs a friend\n"
+               "3.Load a game\n"
+               "4.Battle log\n"
+               "5.Scoreboard\n"
+               "6.Settings\n"
+               "7.Help\n"
+               "0.Exit\n");
         int choice = get_choice();
         system("cls");
         switch (choice) {
@@ -86,11 +108,17 @@ int main() {
                 change_settings();
                 break;
             case 0:
-                exit(0);
+                exit(EXIT_SUCCESS);
             default:
                 printf("Invalid syntax.\n");
         }
     }
+}
+
+int main() {
+    printf("Welcome to sea battle!\n");
+    srand(time(NULL));
+    main_menu();
 }
 
 void set_color(int ForgC) {
@@ -103,27 +131,40 @@ void set_color(int ForgC) {
     }
 }
 
-void main_menu() {
-    printf("1.Play vs computer\n"
-           "2.Play vs a friend\n"
-           "3.Load a game\n"
-           "4.Replay a game\n"
-           "5.Scoreboard\n"
-           "6.Settings\n"
-           "7.Help\n"
-           "0.Exit\n");
-}
-
-void pause_menu() {
-    printf("1.Arsenal\n"
-           "2.Main menu\n"
-           "0.Quit game\n");
-}
-
 int get_choice() {
     int choice;
     scanf("%d", &choice);
     return choice;
+}
+
+void ask_to_save() {
+    printf("1.Save game\n"
+           "2.Surrender\n");
+    switch (get_choice()) {
+        case 1:
+            save_game();
+            break;
+        case 2:
+            printf("You surrender to the power of computer! Good luck to you!\n");
+    }
+}
+
+int get_choice_from_pause_menu() {
+    printf("1.Main menu\n"
+           "2.Resume\n"
+           "0.Quit game\n");
+    switch (get_choice()) {
+        case 0:
+            ask_to_save();
+            return 0;
+        case 1:
+            ask_to_save();
+            return RETURN_TO_MAIN_MENU;
+        case 2:
+            return 2;
+        default:
+            printf("Invalid syntax.\n");
+    }
 }
 
 void print_date() {
@@ -142,7 +183,7 @@ void print_header() {
 
 void print_columns() {
     for (int i = 0; i < map_size; ++i)
-        printf("%d ");
+        printf("%d ", i + 1);
     printf("\n");
 }
 
@@ -161,6 +202,7 @@ void display_map(char **map) {
 void print_page_in_bot_mode(char **map1, char **map2) {
     print_header();
     display_map(map1);
+    display_map(map2);
 }
 
 void add_node(Ship **list, int len_of_ship) {
@@ -217,13 +259,20 @@ void copy_list(Ship *source, Ship **dest) {
     }
 }
 
-void allocate_map(char **map, char initial_value) {
-    map = (char **) malloc(sizeof(char *) * map_size);
+void allocate_map(char ***map, char initial_value) {
+    *map = (char **) malloc(sizeof(char *) * map_size);
 
     for (int i = 0; i < map_size; ++i) {
-        map[i] = (char *) calloc(map_size, sizeof(char));
-        memset(map[i], initial_value, map_size * sizeof(char));
+        (*map)[i] = (char *) calloc(map_size, sizeof(char));
+        memset((*map)[i], initial_value, map_size * sizeof(char));
     }
+}
+
+void do_the_allocations() {
+    allocate_map(&player1.revealed_map, '?');
+    allocate_map(&player2.revealed_map, '?');
+    allocate_map(&player1.concealed_map, '?');
+    allocate_map(&player2.concealed_map, '?');
 }
 
 void display_page_for_placing(char **map) {
@@ -232,32 +281,165 @@ void display_page_for_placing(char **map) {
     display_map(map);
 }
 
-void manually_place_ships(char **map) {
+void put_ship(Square bow, Square stern, char **map) {
+    int min_row, max_row, min_col, max_col;
+    min_row = fmin(bow.row, stern.row), min_col = fmin(bow.column, stern.column);
+    max_row = fmax(bow.column, stern.column), max_col = fmax(bow.column, stern.column);
+    for (int i = min_row - 1 >= 0 ? min_row - 1 : min_row;
+         i < max_row + 1 < map_size ? max_row + 1 : max_row; ++i) {
+        for (int j = min_col - 1 >= 0 ? min_col - 1 : min_col;
+             j < max_col + 1 < map_size ? max_col + 1 : max_col; ++j) {
+            if (i <= max_col && i >= min_col && j <= max_col && j >= min_col)
+                map[i][j] = 'S';
+            else
+                map[i][j] = 'W';
+        }
+    }
+}
+
+void manually_place_ships(Player *player) {
     for (int i = 0; i < num_of_ships;) {
-        display_page_for_placing(map);
+        display_page_for_placing(player->revealed_map);
 
         printf("Enter bow and stern of ship%d (e.g. 1A 3A): ", i + 1);
         char chosen_bow[20], chosen_stern[20];
         scanf("%*c%s %[^\n]s%*c", chosen_bow, chosen_stern);
-        is_valid_placement(chosen_bow, chosen_stern);
+        Square bow, stern;
+        bow.row = chosen_bow[0] - '1', stern.row = chosen_stern[0] - '1';
+        bow.column = chosen_bow[1] - 'A', bow.column = chosen_stern[1] - 'A';
+        if (is_valid_placement(bow, stern))
+            put_ship(bow, stern, player->revealed_map);
     }
 }
 
-void auto_place_ships(char **map) {
-
+void choose_a_random_square(char **map, int remained_squares, Square *square) {
+    while (true) {
+        int random_square = rand() % remained_squares;
+        for (int j = 0; j < map_size; ++j) {
+            for (int k = 0; k < map_size; ++k) {
+                if (map[j][k] == '?') {
+                    if (random_square == 0)
+                        square->row = j, square->column = k;
+                    else --remained_squares;
+                }
+            }
+        }
+        if (map[square->row][square->column] == '?') return;
+    }
 }
 
-void place_ships(char **map) {
+void find_placeable_directions(Square square, bool *directions, char **map, int len) {
+    for (int i = UP; i < 4; ++i) {
+        if (i == UP ? square.row - len >= 0
+                    : i == RIGHT ? square.column + len < map_size
+                                 : i == DOWN ? square.row + len < map_size
+                                             : square.column - len >= 0) {
+            for (int k = len, j = i == UP || i == DOWN ? square.row : square.column; k--;
+                 i == UP || i == LEFT ? --j : ++j) {
+                if (i == UP || i == DOWN ? map[j][square.column] != '?' : map[square.row][j] != '?') {
+                    directions[i] = false;
+                    break;
+                }
+            }
+        } else directions[i] = false;
+    }
+}
+
+int count_placeable_dirs(bool *directions) {
+    int count = 0;
+    for (int i = 0; i < 4; ++i)
+        if (directions[i] == true) count++;
+
+    return count;
+}
+
+int choose_direction(bool directions[], int placeable_dirs) {
+    int i, random_dir = rand() % placeable_dirs + 1;
+    for (i = 0; random_dir--; ++i)
+        while (!directions[i]) ++i;
+
+    return i - 1;
+}
+
+void find_stern(Square bow, int direction, Square *stern, int len) {
+    switch (direction) {
+        case UP:
+            stern->column = bow.column;
+            stern->row = bow.row - len;
+            break;
+        case RIGHT:
+            stern->row = bow.row;
+            stern->column = bow.column + len;
+            break;
+        case DOWN:
+            stern->column = bow.column;
+            stern->row = bow.row + len;
+            break;
+        case LEFT:
+            stern->row = bow.row;
+            stern->column = bow.column - len;
+    }
+}
+
+int count_char(char **map, char c) {
+    int count = 0;
+    for (int i = 0; i < map_size; ++i) {
+        for (int j = 0; j < map_size; ++j)
+            if (map[i][j] == c) ++count;
+    }
+
+    return count;
+}
+
+void replace_by_W(int remained_squares, char **map) {
+    for (int i = 0; i < map_size; ++i) {
+        for (int j = 0; j < map_size; ++j, --remained_squares) {
+            if (remained_squares == 0) break;
+            else if (map[i][j] == '?')
+                map[i][j] = 'W';
+        }
+    }
+}
+
+void auto_place_ships(Player *player) {
+    int remained_squares = map_size * map_size;
+    for (int i = 0; i < num_of_ships; ++i, player->ships = player->ships->next_ship) {
+        int len_of_ship = player->ships->len;
+        if (len_of_ship > 1) {
+            int num_of_placeable_dirs = 0;
+            while (num_of_placeable_dirs == 0) {
+                Square bow, stern;
+                choose_a_random_square(player->revealed_map, remained_squares, &bow);
+                bool placeable_dirs[4] = {true, true, true, true};
+                find_placeable_directions(bow, placeable_dirs, player->revealed_map, --len_of_ship);
+                num_of_placeable_dirs = count_placeable_dirs(placeable_dirs);
+                if (num_of_placeable_dirs > 0) {
+                    find_stern(bow, choose_direction(placeable_dirs, num_of_placeable_dirs), &stern, len_of_ship);
+                    put_ship(bow, stern, player->revealed_map);
+                    remained_squares = count_char(player->revealed_map, '?');
+                }
+            }
+        } else {
+            Square bow;
+            choose_a_random_square(player->revealed_map, remained_squares, &bow);
+            put_ship(bow, bow, player->revealed_map);
+            remained_squares = count_char(player->revealed_map, '?');
+        }
+    }
+    replace_by_W(remained_squares, player->revealed_map);
+}
+
+void place_ships(Player *player) {
     printf("Place ships:\n"
            "1.Auto\n"
            "2.Manually\n");
     int choice = get_choice();
     switch (choice) {
         case 1:
-            auto_place_ships(map);
+            auto_place_ships(player);
             break;
         case 2:
-            manually_place_ships(map);
+            manually_place_ships(player);
             break;
         default:
             printf("Invalid choice.\n");
@@ -267,35 +449,56 @@ void place_ships(char **map) {
 void display_page_for_guessing_vs_bot() {
     system("cls");
     print_header();
-    display_map(revealed_map1);
-    display_map(concealed_map2);
-    printf("Choose a square to shoot: ");
+    display_map(player1.revealed_map);
+    display_map(player2.concealed_map);
+    printf("Choose a square to shoot (e.g. 1A) or cease fire by entering \"pause\": ");
+}
+
+void play_for_bot() {
+
+}
+
+int game_vs_bot_loop() {
+    int turn = 1;
+    while (player1.ships != NULL && player2.ships != NULL) {
+        if (turn % 2) {
+            display_page_for_guessing_vs_bot();
+            char command[30];
+            gets(command);
+            if (strcmpi(command, "pause") == 0 && get_choice_from_pause_menu() == RETURN_TO_MAIN_MENU)
+                return RETURN_TO_MAIN_MENU;
+            else if (is_valid_shoot(command, player2.concealed_map)) /////
+                apply_changes(turn % 2 ? player2.concealed_map : player1.concealed_map, command, &turn);/////
+            else {
+                printf("Invalid shoot or syntax. Please try again.\n");
+                sleep(3);
+            }
+        } else {
+            play_for_bot();
+            turn++;
+        }
+    }
+
+    return 0;
+}
+
+void end_game() {
+
 }
 
 void play_vs_bot() {
-    Ship *player1_ships = NULL, *player2_ships = NULL;
-    bool is_settings_loaded = load_settings(&player1_ships);
+    player1.ships = NULL, player2.ships = NULL;
+    bool is_settings_loaded = load_settings(&(player1.ships));
     if (!is_settings_loaded) return;
-    copy_list(player1_ships, &player2_ships);
 
-    allocate_map(revealed_map1, 'W');
-    allocate_map(revealed_map2, 'W');
-    allocate_map(concealed_map1, '?');
-    allocate_map(concealed_map2, '?');
+    copy_list(player1.ships, &player2.ships);
 
-    place_ships(revealed_map1);/////
-    auto_place_ships(revealed_map2);/////
+    do_the_allocations();
 
-    int turn = 1;
-    while (player1_ships != NULL && player2_ships != NULL) {
-        display_page_for_guessing_vs_bot();
-        char shot_square[20];
-        gets(shot_square);
-        if (is_valid_shoot(shot_square, concealed_map2)) {/////
-            apply_changes(shot_square, turn % 2 ? concealed_map2 : concealed_map1);/////
-            turn++;
-        } else
-            printf("Invalid shoot. Please try again.\n");
-    }
+    place_ships(&player1);
+    auto_place_ships(&player2);
+
+    if (game_vs_bot_loop() == RETURN_TO_MAIN_MENU) return;
+
+    end_game();////
 }
-
