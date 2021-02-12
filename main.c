@@ -1,10 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "hicpp-signed-bitwise"
-#pragma clang diagnostic ignored "-Wunknown-pragmas"
-#pragma ide diagnostic ignored "hicpp-multiway-paths-covered"
-#pragma ide diagnostic ignored "cert-err34-c"
-#pragma ide diagnostic ignored "bugprone-branch-clone"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -14,7 +7,7 @@
 #include <windows.h>
 #include <conio.h>
 #include <unistd.h>
-#include "sea battle.h"
+#include "main.h"
 
 int map_size, num_of_ships;
 
@@ -1310,8 +1303,6 @@ void show_cursor() {
     info.bVisible = TRUE;
     SetConsoleCursorInfo(console_handle, &info);
 }
-
-#pragma clang diagnostic pop
 
 // THIS WAS FOR SAVING A MAP THAT PLAYER HAS CONFIRMED BUT ISN'T FINISHED:
 //
