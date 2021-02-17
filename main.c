@@ -327,7 +327,7 @@ void print_header() {
     int line_len = printf("Subject: Sea Battle%*sDate: ", map_size * 2, "") + 9;
     print_date();
     while (line_len--)
-        printf("-");
+        putchar('-');
     printf("\n\n");
 }
 
@@ -675,11 +675,7 @@ void auto_arrange_map(Player *player) {
 
         if (player->is_bot) return;
 
-        hide_cursor();
-        gotoxy(0, 0);
-        print_header();
-        display_map(player->revealed_map, player->name, player->score);
-        show_cursor();
+        display_screen_for_placing(*player);
         is_confirmed = get_confirmation();
     } while (!is_confirmed);
 }
@@ -714,8 +710,7 @@ void auto_place_ships(Player *player) {
     Ship *ship = player->ships;
     for (int i = 0; i < num_of_ships; ++i, ship = ship->next_ship) {
         if (ship->len == 1) {
-            ship->bow = rand_square(player->revealed_map, remained_squares);
-            ship->stern = ship->bow;
+            ship->stern = ship->bow = rand_square(player->revealed_map, remained_squares);
             reveal_ship(*ship, player->revealed_map, 'S');
         } else {
             int num_of_placeable_dirs;
@@ -807,13 +802,13 @@ Square find_stern(Square bow, enum directions chosen_direction, int len) {
     Square stern;
     switch (chosen_direction) {
         case UP:
-            stern = (Square) {bow.col, bow.row - len};
+            stern = (Square) {bow.row - len, bow.col};
             return stern;
         case RIGHT:
             stern = (Square) {bow.row, bow.col + len};
             return stern;
         case DOWN:
-            stern = (Square) {bow.col, bow.row + len};
+            stern = (Square) {bow.row + len, bow.col};
             return stern;
         case LEFT:
             stern = (Square) {bow.row, bow.col - len};
