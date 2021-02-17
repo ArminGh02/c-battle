@@ -107,17 +107,10 @@ void main_menu(Player player1) {
                 game = temp;
                 break;
             }
-            case '4':
-                battle_log(game->player1.name);
-                break;
-            case '5':
-                scoreboard();
-                break;
-            case '6':
-                settings_menu(&game->player1);
-                break;
-            case '0':
-                exit(EXIT_SUCCESS);
+            case '4': battle_log(game->player1.name); break;
+            case '5': scoreboard(); break;
+            case '6': settings_menu(&game->player1); break;
+            case '0': exit(EXIT_SUCCESS);
         }
     }
 }
@@ -156,12 +149,12 @@ void scoreboard() {
     FILE *saved_players = fopen("Saved players.bin", "r+b"),
             *temp = fopen("tmp.bin", "w+b");
 
-    copy_file(temp, saved_players);
+    copy_players_file(temp, saved_players);
     rewind(saved_players);
 
     print_scoreboard(saved_players);
 
-    copy_file(saved_players, temp);
+    copy_players_file(saved_players, temp);
     fclose(temp);
     fclose(saved_players);
     remove("tmp.bin");
@@ -170,7 +163,7 @@ void scoreboard() {
     getch();
 }
 
-void copy_file(FILE *dest, FILE *source) {
+void copy_players_file(FILE *dest, FILE *source) {
     fflush(dest);
     fflush(source);
     rewind(dest);
@@ -249,25 +242,24 @@ void set_map_size_and_num_of_ships(Settings settings) {
 
 Ship *create_list_of_ships(Settings settings) {
     Ship *ships = NULL;
-    for (int i = 0; i < num_of_ships; i++)
+    for (int i = 0; i < num_of_ships; ++i)
         add_ship(&ships, settings.lengths_of_ships[i]);
 
     return ships;
 }
 
-void add_ship(Ship **list, int len_of_ship) {
-    if (*list == NULL) {
-        *list = (Ship *) malloc(sizeof(Ship));
-        (*list)->len = len_of_ship;
-        (*list)->next_ship = NULL;
+void add_ship(Ship **ships_head, int len_of_ship) {
+    if (*ships_head == NULL) {
+        *ships_head = (Ship *) malloc(sizeof(Ship));
+        (*ships_head)->len = len_of_ship;
+        (*ships_head)->next_ship = NULL;
     } else {
-        Ship *node = *list;
-        while (node->next_ship)
-            node = node->next_ship;
+        Ship *ship = *ships_head;
+        while (ship->next_ship) ship = ship->next_ship;
 
-        node->next_ship = (Ship *) malloc(sizeof(Ship));
-        node->next_ship->len = len_of_ship;
-        node->next_ship->next_ship = NULL;
+        ship->next_ship = (Ship *) malloc(sizeof(Ship));
+        ship->next_ship->len = len_of_ship;
+        ship->next_ship->next_ship = NULL;
     }
 }
 
@@ -280,9 +272,9 @@ void do_the_maps_allocations(Player *player1, Player *player2) {
 
 char **allocate_map(char initial_value) {
     char **map = (char **) malloc(map_size * sizeof(char *));
-    for (int i = 0; i < map_size; ++i) {
-        map[i] = (char *) malloc(map_size * sizeof(char));
-        memset(map[i], initial_value, map_size * sizeof(char));
+    for (int row = 0; row < map_size; ++row) {
+        map[row] = (char *) malloc(map_size * sizeof(char));
+        memset(map[row], initial_value, map_size * sizeof(char));
     }
 
     return map;
@@ -340,11 +332,11 @@ void print_date() {
 void display_map(char **map, char *name, int score) {
     printf(score == -1 ? "%s\n" : "%s%*s score: %d\n", name, 3 * map_size - (int) strlen(name) - 7, "", score);
     print_columns();
-    for (int i = 0; i < map_size; ++i) {
-        putchar(i + 65);
-        for (int j = 0; j < map_size; ++j) {
+    for (int row = 0; row < map_size; ++row) {
+        putchar(row + 65);
+        for (int col = 0; col < map_size; ++col) {
             printf("  ");
-            put_colored_char(map[i][j]);
+            put_colored_char(map[row][col]);
         }
         putchar('\n');
     }
@@ -353,8 +345,8 @@ void display_map(char **map, char *name, int score) {
 
 void print_columns() {
     printf("   ");
-    for (int i = 1; i <= map_size; ++i)
-        printf(i >= 10 ? "%d " : "%d  ", i);
+    for (int col = 1; col <= map_size; ++col)
+        printf(col >= 10 ? "%d " : "%d  ", col);
     putchar('\n');
 }
 
@@ -387,7 +379,7 @@ Game *load_game(char *player1_name, bool is_replay) {
     system("cls");
 
     FILE *saved_games = fopen(is_replay ? "Saved replays.bin" : "Saved games.bin", "rb");
-    Game *game = find_chosen_game(choice, player1_name, saved_games, is_replay);
+    Game *game = find_chosen_game(saved_games, player1_name, choice, is_replay);
 
     set_map_size_and_num_of_ships(game->player1.settings);
     do_the_maps_allocations(&game->player1, &game->player2);
@@ -428,11 +420,11 @@ int get_chosen_game_num(int total_num_of_games) {
         printf("Choose number of a game: ");
         scanf("%d", &choice);
         if (1 <= choice && choice <= total_num_of_games) return choice;
-        else printf("The choice must be between 1 and %d\n", total_num_of_games);
+        printf("The choice must be between 1 and %d\n", total_num_of_games);
     }
 }
 
-Game *find_chosen_game(int choice, char *player1_name, FILE *saved_games, bool is_replay) {
+Game *find_chosen_game(FILE *saved_games, char *player1_name, int choice, bool is_replay) {
     Game *game = (Game *) malloc(sizeof(Game));
     for (int i = 0; i < choice;) {
         fread(game, sizeof(Game), 1, saved_games);
@@ -516,18 +508,17 @@ void restore_ships_with_equal_length(Ship **ship, const char **map) {
                     for (int l = (*ship)->len - 2; l--; ++k) {
                         if (map[k][j] != 'S') found = 0;
                     }
-                    if (!found) goto there;
+                    if (found) {
+                        (*ship)->bow = (Square) {i, j};
+                        (*ship)->stern = (Square) {k, j};
 
-                    (*ship)->bow = (Square) {i, j};
-                    (*ship)->stern = (Square) {k, j};
-
-                    if ((*ship)->next_ship->len != (*ship)->len) {
+                        if ((*ship)->next_ship->len != (*ship)->len) {
+                            (*ship) = (*ship)->next_ship;
+                            return;
+                        }
                         (*ship) = (*ship)->next_ship;
-                        return;
+                        continue;
                     }
-                    (*ship) = (*ship)->next_ship;
-                    continue;
-                    there:;
                 }
                 if (j + (*ship)->len - 1 < map_size && map[i][j + (*ship)->len - 1] == 'S' &&
                     (j + (*ship)->len > map_size - 1 || map[i][j + (*ship)->len] == 'W')) {
@@ -611,7 +602,7 @@ int game_loop(Game *game) {
             display_screen_for_guessing(game->player1, game->player2, false);
 
             char command[50];
-            get_command(command, game->player1, game->player2, game->turn);
+            get_command(game->player1, game->player2, command, game->turn);
 
             Square shoot;
             if (strcmpi(command, "pause") == 0) {
@@ -637,7 +628,7 @@ bool is_game_ended(Ship *player1_ships, Ship *player2_ships) {
     return player1_ships == NULL || player2_ships == NULL;
 }
 
-void get_command(char command[], Player player1, Player player2, int turn) {
+void get_command(Player player1, Player player2, char command[], int turn) {
     if (!player2.is_bot)
         printf("%s's turn.\n", turn % 2 ? player1.name : player2.name);
     printf("Choose a square to shoot (e.g. A1) or cease fire by entering \"pause\": ");
@@ -683,17 +674,15 @@ void auto_arrange_map(Player *player) {
 
 void clear_map(char **map) {
     if (map[0][0] != '?') {
-        for (int i = 0; i < map_size; ++i)
-            memset(map[i], '?', sizeof(char) * map_size);
+        for (int row = 0; row < map_size; ++row)
+            memset(map[row], '?', sizeof(char) * map_size);
     }
 }
 
 void fill_empty_squares_with_water(char **map) {
-    for (int i = 0; i < map_size; ++i) {
-        for (int j = 0; j < map_size; ++j) {
-            if (map[i][j] == '?')
-                map[i][j] = 'W';
-        }
+    for (int row = 0; row < map_size; ++row) {
+        for (int col = 0; col < map_size; ++col)
+            if (map[row][col] == '?') map[row][col] = 'W';
     }
 }
 
@@ -734,15 +723,12 @@ void auto_place_ships(Player *player) {
 }
 
 Square rand_square(char **map, int remained_squares) {
-    Square square;
     int random_num = rand() % remained_squares;
-    for (int i = 0; i < map_size; ++i) {
-        for (int j = 0; j < map_size; ++j) {
-            if (map[i][j] == '?') {
-                if (random_num == 0) {
-                    square.row = i, square.col = j;
-                    return square;
-                } else --random_num;
+    for (int row = 0; row < map_size; ++row) {
+        for (int col = 0; col < map_size; ++col) {
+            if (map[row][col] == '?') {
+                if (random_num == 0) return (Square) {row, col};
+                random_num--;
             }
         }
     }
@@ -800,28 +786,19 @@ enum directions rand_dir(const enum placeability directions[], int num_of_placea
 }
 
 Square find_stern(Square bow, enum directions chosen_direction, int len) {
-    Square stern;
     switch (chosen_direction) {
-        case UP:
-            stern = (Square) {bow.row - len, bow.col};
-            return stern;
-        case RIGHT:
-            stern = (Square) {bow.row, bow.col + len};
-            return stern;
-        case DOWN:
-            stern = (Square) {bow.row + len, bow.col};
-            return stern;
-        case LEFT:
-            stern = (Square) {bow.row, bow.col - len};
-            return stern;
+        case UP: return (Square) {bow.row - len, bow.col};
+        case RIGHT: return (Square) {bow.row, bow.col + len};
+        case DOWN: return (Square) {bow.row + len, bow.col};
+        case LEFT: return (Square) {bow.row, bow.col - len};
     }
 }
 
 int count_char(char **map, char c) {
     int count = 0;
-    for (int i = 0; i < map_size; ++i) {
-        for (int j = 0; j < map_size; ++j)
-            if (map[i][j] == c) ++count;
+    for (int row = 0; row < map_size; ++row) {
+        for (int col = 0; col < map_size; ++col)
+            if (map[row][col] == c) ++count;
     }
 
     return count;
@@ -838,7 +815,7 @@ void manually_place_ships(Player *player) {
             char chosen_bow[30], chosen_stern[30];
             get_bow_and_stern(chosen_bow, chosen_stern, ship->len, i + 1);
 
-            if (is_valid_ship_placement(chosen_bow, chosen_stern, ship, player->revealed_map)) {
+            if (is_valid_ship_placement(ship, player->revealed_map, chosen_bow, chosen_stern)) {
                 if (square_compare(ship->stern, ship->bow) == 1) square_swap(&ship->bow, &ship->stern);
                 reveal_ship(*ship, player->revealed_map, 'S');
                 i++;
@@ -862,7 +839,7 @@ void get_bow_and_stern(char bow[], char stern[], int ship_len, int ship_num) {
     if (ship_len == 1) strcpy(stern, bow);
 }
 
-bool is_valid_ship_placement(char *chosen_bow, char *chosen_stern, Ship *ship, char **map) {
+bool is_valid_ship_placement(Ship *ship, char **map, char *chosen_bow, char *chosen_stern) {
     if (!is_placeable_square(map, chosen_bow, &ship->bow) ||
         !is_placeable_square(map, chosen_stern, &ship->stern))
         return false;
@@ -870,13 +847,11 @@ bool is_valid_ship_placement(char *chosen_bow, char *chosen_stern, Ship *ship, c
     if (square_compare(ship->stern, ship->bow) == 1) square_swap(&ship->stern, &ship->bow);
 
     if (is_vertical(ship->bow, ship->stern) == 1) {
-        if (ship->stern.row - ship->bow.row != ship->len - 1)
-            return false;
+        if (ship->stern.row - ship->bow.row != ship->len - 1) return false;
         for (int i = ship->bow.row + 1; i < ship->stern.row; ++i)
             if (map[i][ship->bow.col] != '?') return false;
     } else if (is_vertical(ship->bow, ship->stern) == -1) {
-        if (ship->stern.col - ship->bow.col != ship->len - 1)
-            return false;
+        if (ship->stern.col - ship->bow.col != ship->len - 1) return false;
         for (int i = ship->bow.col + 1; i < ship->stern.col; ++i)
             if (map[ship->bow.row][i] != '?') return false;
     } else return false;
@@ -925,9 +900,8 @@ void play_for_bot(Game *game) {
 
 Square shoot_for_bot(char **opponent_map) {
     int num_of_explosions = count_char(opponent_map, 'E');
-    if (num_of_explosions == 0) {
-        return rand_square(opponent_map, count_char(opponent_map, '?'));
-    } else if (num_of_explosions == 1) {
+    if (num_of_explosions == 0) return rand_square(opponent_map, count_char(opponent_map, '?'));
+    else if (num_of_explosions == 1) {
         Square explosion_square = find_explosion(opponent_map, NO_PREVIOUS_VALUE, NO_PREVIOUS_VALUE);
 
         enum placeability placeable_dirs[] = {PLACEABLE, PLACEABLE, PLACEABLE, PLACEABLE};
@@ -938,14 +912,9 @@ Square shoot_for_bot(char **opponent_map) {
 }
 
 Square find_explosion(char **map, int previous_row, int previous_col) {
-    Square explosion;
     for (int row = 0; row < map_size; ++row) {
-        for (int col = 0; col < map_size; ++col) {
-            if (map[row][col] == 'E' && (row != previous_row || col != previous_col)) {
-                explosion.row = row, explosion.col = col;
-                return explosion;
-            }
-        }
+        for (int col = 0; col < map_size; ++col)
+            if (map[row][col] == 'E' && (row != previous_row || col != previous_col)) return (Square) {row, col};
     }
 }
 
@@ -1001,7 +970,7 @@ void apply_changes(Player *opponent, Square shoot, int *attacker_score, const in
         if (attacker_score != NULL) (*attacker_score)++;
 
         Ship attacked_ship = find_attacked_ship(opponent->ships, shoot);
-        if (is_ship_sunk(attacked_ship, *opponent)) {
+        if (is_ship_sunk(attacked_ship, opponent->concealed_map)) {
             if (attacker_score != NULL)
                 *attacker_score += (5 * max_len_of_ships(lengths_of_ships, false) / attacked_ship.len) / 2;
 
@@ -1015,10 +984,10 @@ void apply_changes(Player *opponent, Square shoot, int *attacker_score, const in
     }
 }
 
-bool is_ship_sunk(Ship attacked_ship, Player opponent) {
-    for (int i = attacked_ship.bow.row; i <= attacked_ship.stern.row; ++i) {
-        for (int j = attacked_ship.bow.col; j <= attacked_ship.stern.col; ++j)
-            if (opponent.concealed_map[i][j] != 'E') return false;
+bool is_ship_sunk(Ship attacked_ship, char **concealed_map) {
+    for (int row = attacked_ship.bow.row; row <= attacked_ship.stern.row; ++row) {
+        for (int col = attacked_ship.bow.col; col <= attacked_ship.stern.col; ++col)
+            if (concealed_map[row][col] != 'E') return false;
     }
 
     return true;
@@ -1032,26 +1001,23 @@ Ship find_attacked_ship(Ship *opponents_ships, Square shoot) {
     }
 }
 
-void delete_ship(Player *player, Square bow) {
+void delete_ship(Ship **ships_head, Square bow) {
     Ship *temp;
-    if (player->ships->bow.row == bow.row && player->ships->bow.col == bow.col) {
-        temp = player->ships;
-        player->ships = player->ships->next_ship;
+    if ((*ships_head)->bow.row == bow.row && (*ships_head)->bow.col == bow.col) {
+        temp = *ships_head;
+        *ships_head = (*ships_head)->next_ship;
     } else {
-        Ship *ship = player->ships;
-        for (; ship->next_ship->bow.row != bow.row || ship->next_ship->bow.col != bow.col;
-               ship = ship->next_ship);
+        Ship *ship = *ships_head;
+        for (; ship->next_ship->bow.row != bow.row || ship->next_ship->bow.col != bow.col; ship = ship->next_ship);
 
         temp = ship->next_ship;
-        if (ship->next_ship->next_ship == NULL)
-            ship->next_ship = NULL;
-        else
-            ship->next_ship = ship->next_ship->next_ship;
+        if (ship->next_ship->next_ship == NULL) ship->next_ship = NULL;
+        else ship->next_ship = ship->next_ship->next_ship;
     }
     free(temp);
 }
 
-int win_bonus(const int lengths_of_ships[]) {
+int win_bonus(const int *lengths_of_ships) {
     int bonus = 0, max_len = max_len_of_ships(lengths_of_ships, false);
     for (int i = 0; i < num_of_ships; ++i)
         bonus += (5 * max_len / lengths_of_ships[i]) / 2;
@@ -1059,7 +1025,7 @@ int win_bonus(const int lengths_of_ships[]) {
     return bonus;
 }
 
-int max_len_of_ships(const int lengths_of_ships[], bool is_the_game_ended) {
+int max_len_of_ships(const int *lengths_of_ships, bool is_the_game_ended) {
     static int max_len = 0;
     static bool is_max_len_calculated = false;
     if (is_the_game_ended) {
@@ -1092,17 +1058,10 @@ int get_choice_from_pause_menu(Game *game) {
         choice = print_and_clear_menu(choice, PAUSE_MENU);
         if ('1' <= choice && choice <= '4') update_players_in_file(&game->player1, &game->player2);
         switch (choice) {
-            case '1':
-                ask_to_save_game(*game);
-                return RETURN_TO_MAIN_MENU;
-            case '2':
-                save_game(*game, false);
-                break;
-            case '3':
-                return 3;
-            case '4':
-                ask_to_save_game(*game);
-                exit(EXIT_SUCCESS);
+            case '1': ask_to_save_game(*game); return RETURN_TO_MAIN_MENU;
+            case '2': save_game(*game, false); break;
+            case '3': return 3;
+            case '4': ask_to_save_game(*game); exit(EXIT_SUCCESS);
         }
     }
 }
@@ -1161,8 +1120,8 @@ void save_4_maps_of_game(Game game, FILE *saved_games) {
 }
 
 void fwrite_map(char **map, FILE *file_to_write_to) {
-    for (int i = 0; i < map_size; ++i)
-        fwrite(map[i], sizeof(char), map_size, file_to_write_to);
+    for (int row = 0; row < map_size; ++row)
+        fwrite(map[row], sizeof(char), map_size, file_to_write_to);
 }
 
 
@@ -1214,19 +1173,14 @@ void settings_menu(Player *player) {
     for (;;) {
         choice = print_and_clear_menu(choice, SETTINGS_MENU);
         switch (choice) {
-            case '1':
-                change_map_size(player);
-                break;
-            case '2':
-                change_ships_settings(player);
-                break;
+            case '1': change_map_size(player); break;
+            case '2': change_ships_settings(player); break;
             case '3':
                 player->settings = set_defaults();
                 printf("Done.\n");
                 Sleep(1000);
                 break;
-            case '4':
-                return;
+            case '4': return;
         }
         if ('1' <= choice && choice <= '3') update_players_in_file(player, NULL);
     }

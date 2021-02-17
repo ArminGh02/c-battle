@@ -60,7 +60,7 @@ char print_and_clear_menu(char choice, enum menu);
 char print_menu(enum menu);
 
 void scoreboard();
-void copy_file(FILE *dest, FILE *source);
+void copy_players_file(FILE *dest, FILE *source);
 void print_scoreboard(FILE *saved_players);
 Player *find_player_with_max_score(FILE *saved_players);
 
@@ -70,7 +70,7 @@ Ship *load_settings(Settings settings);
 void set_map_size_and_num_of_ships(Settings settings);
 Ship *create_list_of_ships(Settings settings);
 Ship *copy_ships_list(Ship *source);
-void add_ship(Ship **list, int len_of_ship);
+void add_ship(Ship **ships_head, int len_of_ship);
 void do_the_maps_allocations(Player *player1, Player *player2);
 char **allocate_map(char initial_value);
 
@@ -87,7 +87,7 @@ void set_color(int color);
 Game *load_game(char *player1_name, bool is_replay);
 int display_saved_games(char *player1_name, bool is_replay);
 int get_chosen_game_num(int total_num_of_games);
-Game *find_chosen_game(int choice, char *player1_name, FILE *saved_games, bool is_replay);
+Game *find_chosen_game(FILE *saved_games, char *player1_name, int choice, bool is_replay);
 void prepare_players_of_loaded_game(Game *game, FILE *saved_games, char *player1_name);
 void prepare_players_of_replay(Game *game, FILE *saved_games);
 void load_4_maps_of_game(Game *game, FILE *saved_games);
@@ -103,7 +103,7 @@ void replay(Game game);
 void play_the_game(Game *game, bool is_a_loaded_game);
 int game_loop(Game *game);
 bool is_game_ended(Ship *player1_ships, Ship *player2_ships);
-void get_command(char command[], Player player1, Player player2, int turn);
+void get_command(Player player1, Player player2, char command[], int turn);
 
 void how_to_place_ships(Player *player);
 
@@ -122,7 +122,7 @@ int count_char(char **map, char c);
 
 void manually_place_ships(Player *player);
 void get_bow_and_stern(char bow[], char stern[], int ship_len, int ship_num);
-bool is_valid_ship_placement(char *chosen_bow, char *chosen_stern, Ship *ship, char **map);
+bool is_valid_ship_placement(Ship *ship, char **map, char *chosen_bow, char *chosen_stern);
 bool is_placeable_square(char **map, char *chosen_square, Square *square_coordinates);
 int square_compare(Square square1, Square square2);
 void square_swap(Square *square1, Square *square2);
@@ -135,11 +135,11 @@ int is_vertical(Square square1, Square square2);
 
 void update_game(Game *game, Square shoot);
 void apply_changes(Player *opponent, Square shoot, int *attacker_score, const int *lengths_of_ships);
-bool is_ship_sunk(Ship attacked_ship, Player opponent);
+bool is_ship_sunk(Ship attacked_ship, char **concealed_map);
 Ship find_attacked_ship(Ship *opponents_ships, Square shoot);
-void delete_ship(Player *player, Square bow);
-int win_bonus(const int lengths_of_ships[]);
-int max_len_of_ships(const int lengths_of_ships[], bool is_the_game_ended);
+void delete_ship(Ship **ships_head, Square bow);
+int win_bonus(const int *lengths_of_ships);
+int max_len_of_ships(const int *lengths_of_ships, bool is_the_game_ended);
 
 void control_turns(Game *game, Square shoot);
 
