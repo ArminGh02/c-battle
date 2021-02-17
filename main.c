@@ -967,7 +967,7 @@ void apply_changes(Player *opponent, Square shoot, int *attacker_score, const in
                 *attacker_score += (5 * max_len_of_ships(lengths_of_ships, false) / attacked_ship.len) / 2;
 
             reveal_ship(attacked_ship, opponent->concealed_map, 'C');
-            delete_ship(opponent, attacked_ship.bow);
+            delete_ship(&opponent->ships, attacked_ship.bow);
             opponent->remaining_ships--;
 
             if (opponent->ships == NULL && attacker_score != NULL)
