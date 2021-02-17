@@ -155,6 +155,7 @@ char print_menu(enum menu menu) {
 void scoreboard() {
     FILE *saved_players = fopen("Saved players.bin", "r+b"),
             *temp = fopen("tmp.bin", "w+b");
+
     copy_file(temp, saved_players);
     rewind(saved_players);
 
@@ -581,7 +582,7 @@ void replay(Game game) {
     hide_cursor();
     while (!is_game_ended(game.player1.ships, game.player2.ships)) {
         display_screen_for_guessing(game.player1, game.player2, true);
-        Sleep(50);
+        Sleep(100);
 
         update_game(&game, game.shoots[game.shoots_counter]);
         control_turns(&game, game.shoots[game.shoots_counter++]);
