@@ -35,7 +35,7 @@ typedef struct {
   char name[MAX_LEN_OF_NAME];
   Player player1, player2;
   int shoots_counter;
-  Square shoots[100];
+  Square shoots[150];
 } Game;
 
 enum menu {
@@ -47,9 +47,6 @@ enum directions {
 enum placeability {
     NOT_PLACEABLE, PLACEABLE
 };
-enum confirmation {
-    REFUSED, CONFIRMED
-};
 
 void say_goodbye();
 
@@ -59,7 +56,7 @@ Settings set_defaults();
 int seek_player_by_name(const char *name, FILE *saved_players);
 
 void main_menu(Player player1);
-char clear_menu(char choice, enum menu);
+char print_and_clear_menu(char choice, enum menu);
 char print_menu(enum menu);
 
 void scoreboard();
@@ -95,12 +92,12 @@ void prepare_players_of_loaded_game(Game *game, FILE *saved_games, char *player1
 void prepare_players_of_replay(Game *game, FILE *saved_games);
 void load_4_maps_of_game(Game *game, FILE *saved_games);
 void fread_map(char **map, FILE *saved_games);
-void restore_ships(Ship **ships, const char **map);
-void restore_ships_with_equal_length(Ship **node, const char **map);
+void restore_ships(Ship **ships_head, const char **map);
+void restore_ships_with_equal_length(Ship **ship, const char **map);
 Ship *load_ships_list(FILE *saved_games, int remaining_ships);
 int load_score(const char *player1_name, const char *player_to_load_name);
 
-void battle_log(char *name);
+void battle_log(char *player_name);
 void replay(Game game);
 
 void play_the_game(Game *game, bool is_a_loaded_game);
@@ -112,15 +109,15 @@ void how_to_place_ships(Player *player);
 
 void auto_arrange_map(Player *player);
 void clear_map(char **map);
-void fill_empty_squares_with_water(int remained_squares, char **map);
+void fill_empty_squares_with_water(char **map);
 bool get_confirmation();
-void auto_place_ships(Player *player, int *remained_squares);
+void auto_place_ships(Player *player);
 Square rand_square(char **map, int remained_squares);
 void reveal_ship(Ship ship, char **map, char S_or_C);
 void find_placeable_dirs(Square square, enum placeability *directions, char **map, int len);
 int count_placeable_dirs(const enum placeability directions[]);
 enum directions rand_dir(const enum placeability directions[], int num_of_placeable_dirs);
-Square find_stern(Square bow, enum directions direction, int len);
+Square find_stern(Square bow, enum directions chosen_direction, int len);
 int count_char(char **map, char c);
 
 void manually_place_ships(Player *player);
