@@ -126,22 +126,14 @@ char print_and_clear_menu(char choice, enum menu menu) {
 
 char print_menu(enum menu menu) {
     char choice;
-    switch (menu) {
-        case MAIN_MENU:
-            printf("1.Play vs computer\n2.Play vs a friend\n3.Load a game\n4.Battle log\n5.Scoreboard\n6.Settings"
-                   "\n0.Exit\n");
-            choice = (char) getch();
-            if ('1' <= choice && choice <= '6') system("cls");
-            return choice;
-        case PAUSE_MENU:
-        case SETTINGS_MENU:
-            printf(menu == PAUSE_MENU
-                   ? "1.Main menu\n2.Save\n3.Resume\n4.Quit game\n"
-                   : "1.Change map size.\n2.Change ships settings.\n3.Restore default settings.\n4.Main menu.\n");
-            choice = (char) getch();
-            if ('1' <= choice && choice <= '4') system("cls");
-            return choice;
-    }
+    printf(menu == MAIN_MENU ? "1.Play vs computer\n2.Play vs a friend\n3.Load a game\n4.Battle log\n5.Scoreboard"
+                               "\n6.Settings\n0.Exit\n"
+                             : menu == PAUSE_MENU ? "1.Main menu\n2.Save\n3.Resume\n4.Quit game\n"
+                                                  : "1.Change map size.\n2.Change ships settings.\n"
+                                                    "3.Restore default settings.\n4.Main menu.\n");
+    choice = (char) getch();
+    if ('1' <= choice && choice <= (menu == MAIN_MENU ? '6' : '4')) system("cls");
+    return choice;
 }
 
 
@@ -493,7 +485,7 @@ void restore_ships_with_equal_length(Ship **ship, const char **map) {
 
                 if ((*ship)->len == 1) {
                     if ((i + 1 > map_size - 1 || map[i + 1][j] == 'W') &&
-                            (j + 1 > map_size - 1 || map[i][j + 1] == 'W')) {
+                        (j + 1 > map_size - 1 || map[i][j + 1] == 'W')) {
                         (*ship)->bow = (*ship)->stern = (Square) {i, j};
                         (*ship) = (*ship)->next_ship;
                         if (*ship == NULL) return;
