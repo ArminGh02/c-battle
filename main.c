@@ -13,16 +13,14 @@ int map_size, num_of_ships;
 int main() {
     system("cls");
     atexit(say_goodbye);
+    srand(time(NULL));
 
     printf("Sea battle\n"
            "By Armin Ghorbanian\n\n"
            "What shall the history call you? ");
     char name[MAX_LEN_OF_NAME];
     gets(name);
-    Player player1 = load_player(name, true);
-
-    srand(time(NULL));
-    main_menu(player1);
+    main_menu(load_player(name, true));
 }
 
 void say_goodbye() {
@@ -104,13 +102,14 @@ void main_menu(Player player1) {
                 Game *temp = game;
                 if ((game = load_game(game->player1.name, false)) != NULL)
                     play_the_game(game, true);
+                free_game_pointer(game);
                 game = temp;
                 break;
             }
             case '4': battle_log(game->player1.name); break;
             case '5': scoreboard(); break;
             case '6': settings_menu(&game->player1); break;
-            case '0': exit(EXIT_SUCCESS);
+            case '0': free_game_pointer(game); exit(EXIT_SUCCESS);
         }
     }
 }
@@ -126,14 +125,44 @@ char print_and_clear_menu(char choice, enum menu menu) {
 
 char print_menu(enum menu menu) {
     char choice;
-    printf(menu == MAIN_MENU ? "1.Play vs computer\n2.Play vs a friend\n3.Load a game\n4.Battle log\n5.Scoreboard"
-                               "\n6.Settings\n0.Exit\n"
+    printf(menu == MAIN_MENU ? "1.Play vs computer\n2.Play vs a friend\n3.Load a game\n4.Battle log\n5.Scoreboard\n"
+                               "6.Settings\n0.Exit\n"
                              : menu == PAUSE_MENU ? "1.Main menu\n2.Save\n3.Resume\n4.Quit game\n"
                                                   : "1.Change map size.\n2.Change ships settings.\n"
                                                     "3.Restore default settings.\n4.Main menu.\n");
     choice = (char) getch();
     if ('1' <= choice && choice <= (menu == MAIN_MENU ? '6' : '4')) system("cls");
     return choice;
+}
+
+void free_game_pointer(Game *game) {
+    if (game == NULL) return;
+
+    free_ships(game->player1.ships);
+    free_ships(game->player2.ships);
+
+    free_map(game->player1.revealed_map);
+    free_map(game->player2.revealed_map);
+    free_map(game->player1.concealed_map);
+    free_map(game->player2.concealed_map);
+
+    free(game);
+}
+
+void free_ships(Ship *ships) {
+    Ship* temp;
+    while (ships != NULL) {
+        temp = ships;
+        ships = ships->next_ship;
+        free(temp);
+    }
+}
+
+void free_map(char **map) {
+    if (map == NULL) return;
+    for (int row = 0; row < map_size; ++row)
+        free(map[row]);
+    free(map);
 }
 
 
@@ -1053,7 +1082,10 @@ int get_choice_from_pause_menu(Game *game) {
             case '1': ask_to_save_game(*game); return RETURN_TO_MAIN_MENU;
             case '2': save_game(*game, false); break;
             case '3': return 3;
-            case '4': ask_to_save_game(*game); exit(EXIT_SUCCESS);
+            case '4': 
+                ask_to_save_game(*game);
+                free_game_pointer(game);
+                exit(EXIT_SUCCESS);
         }
     }
 }
@@ -1115,7 +1147,6 @@ void fwrite_map(char **map, FILE *file_to_write_to) {
     for (int row = 0; row < map_size; ++row)
         fwrite(map[row], sizeof(char), map_size, file_to_write_to);
 }
-
 
 void end_game(Game game) {
     max_len_of_ships(game.player1.settings.lengths_of_ships, true);

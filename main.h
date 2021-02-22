@@ -56,8 +56,12 @@ Settings set_defaults();
 int seek_player_by_name(const char *name, FILE *saved_players);
 
 void main_menu(Player player1);
-char print_and_clear_menu(char choice, enum menu);
+char print_and_clear_menu(char choice, enum menu menu);
 char print_menu(enum menu);
+
+void free_game_pointer(Game* game);
+void free_ships(Ship* ships);
+void free_map(char** map);
 
 void scoreboard();
 void copy_players_file(FILE *dest, FILE *source);
