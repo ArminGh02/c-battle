@@ -162,7 +162,7 @@ void game_over_menu();
 void settings_menu(Player *player);
 void change_map_size(Player *player);
 void change_ships_settings(Player *player);
-int integer_compare_descending(const void *integer1, const void *integer2);
+int integer_compare_descending(const void *p_int1, const void *p_int2);
 int get_map_size_or_num_of_ships(int choice_from_settings_menu);
 
 void hide_cursor();

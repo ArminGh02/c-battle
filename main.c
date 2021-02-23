@@ -100,9 +100,10 @@ void main_menu(Player player1) {
                 break;
             case '3': {
                 Game *temp = game;
-                if ((game = load_game(game->player1.name, false)) != NULL)
+                if ((game = load_game(game->player1.name, false)) != NULL) {
                     play_the_game(game, true);
-                free_game_pointer(game);
+                    free_game_pointer(game);
+                }
                 game = temp;
                 break;
             }
@@ -115,7 +116,7 @@ void main_menu(Player player1) {
 }
 
 char print_and_clear_menu(char choice, enum menu menu) {
-    if ('1' <= choice && choice <= menu == MAIN_MENU ? '6' : menu == PAUSE_MENU ? '4' : '3') {
+    if ('1' <= choice && choice <= (menu == MAIN_MENU ? '6' : menu == PAUSE_MENU ? '4' : '3')) {
         system("cls");
         return (char) print_menu(menu);
     }
@@ -500,10 +501,7 @@ void fread_map(char **map, FILE *saved_games) {
 }
 
 void restore_ships(Ship **ships_head, const char **map) {
-    for (Ship *ship = *ships_head;;) {
-        restore_ships_with_equal_length(&ship, map);
-        if (ship == NULL) return;
-    }
+    for (Ship *ship = *ships_head; ship != NULL; restore_ships_with_equal_length(&ship, map));
 }
 
 void restore_ships_with_equal_length(Ship **ship, const char **map) {
@@ -518,7 +516,6 @@ void restore_ships_with_equal_length(Ship **ship, const char **map) {
                         (*ship)->bow = (*ship)->stern = (Square) {i, j};
                         (*ship) = (*ship)->next_ship;
                         if (*ship == NULL) return;
-                        continue;
                     }
                     continue;
                 }
@@ -637,8 +634,7 @@ int game_loop(Game *game) {
                 printf("Invalid shoot or syntax. Please try again.\n");
                 Sleep(1000);
             }
-        } else
-            play_for_bot(game);
+        } else play_for_bot(game);
     }
     display_screen_for_guessing(game->player1, game->player2, false);
 
@@ -863,7 +859,7 @@ void get_bow_and_stern(char bow[], char stern[], int ship_len, int ship_num) {
 bool is_valid_ship_placement(Ship *ship, char **map, char *chosen_bow, char *chosen_stern) {
     if (!is_placeable_square(map, chosen_bow, &ship->bow) ||
         !is_placeable_square(map, chosen_stern, &ship->stern))
-        return false;
+            return false;
 
     if (square_compare(ship->stern, ship->bow) == 1) square_swap(&ship->stern, &ship->bow);
 
@@ -889,7 +885,7 @@ bool is_placeable_square(char **map, char *chosen_square, Square *square_coordin
         square_coordinates->row >= map_size || --square_coordinates->col >= map_size ||
         square_coordinates->row < 0 || square_coordinates->col < 0 ||
         map[square_coordinates->row][square_coordinates->col] != '?')
-        return false;
+            return false;
 
     return true;
 }
@@ -1018,7 +1014,7 @@ Ship find_attacked_ship(Ship *opponents_ships, Square shoot) {
     for (;; opponents_ships = opponents_ships->next_ship) {
         if (opponents_ships->bow.row <= shoot.row && shoot.row <= opponents_ships->stern.row &&
             opponents_ships->bow.col <= shoot.col && shoot.col <= opponents_ships->stern.col)
-            return *opponents_ships;
+                return *opponents_ships;
     }
 }
 
@@ -1058,7 +1054,6 @@ int max_len_of_ships(const int *lengths_of_ships, bool is_the_game_ended) {
             if (max_len < lengths_of_ships[i])
                 max_len = lengths_of_ships[i];
         }
-
         is_max_len_calculated = true;
     }
 
@@ -1238,8 +1233,10 @@ void change_ships_settings(Player *player) {
     Sleep(1000);
 }
 
-int integer_compare_descending(const void *integer1, const void *integer2) {
-    return (*((int *) integer1) > *((int *) integer2)) ? -1 : (*((int *) integer1) == *((int *) integer2)) ? 0 : 1;
+int integer_compare_descending(const void *p_int1, const void *p_int2) {
+    int int1 = *((int *) p_int1);
+    int int2 = *((int *) p_int2);
+    return (int1 > int2) ? -1 : (int1 == int2) ? 0 : 1;
 }
 
 int get_map_size_or_num_of_ships(int choice_from_settings_menu) {
