@@ -141,7 +141,7 @@ char print_menu(enum Menu menu) {
 
 void free_game_pointer(Game *game) {
     if (game == NULL) return;
-    if (game->turn != -1) {
+    if (game->turn != NOT_STARTED_GAME) {
         free_ships(game->player1.ships);
         free_ships(game->player2.ships);
 
