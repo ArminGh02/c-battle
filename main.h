@@ -6,6 +6,7 @@
 #include <time.h>
 
 #define MAX_LEN_OF_NAME 35
+#define NOT_STARTED_GAME 0
 #define RETURN_TO_MAIN_MENU (-1)
 #define NO_PREVIOUS_VALUE (-1)
 
@@ -57,9 +58,10 @@ Player   create_player(const char *name);
 Settings set_defaults();
 int      seek_player_by_name(const char *name, FILE *saved_players);
 
-void main_menu(Player player1);
-char print_and_clear_menu(char choice, enum Menu menu);
-char print_menu(enum Menu);
+void  main_menu(Player player1);
+Game *allocate_an_initial_game(Player player1);
+char  print_and_clear_menu(char choice, enum Menu menu);
+char  print_menu(enum Menu);
 
 void free_game_pointer(Game* game);
 void free_ships(Ship* ships);
@@ -90,6 +92,7 @@ void print_columns();
 void put_colored_char(char c);
 void set_color(int color);
 
+void  resume_previous_games(char *player_name);
 Game *load_game(char *player1_name, bool is_replay);
 int   display_saved_games(char *player1_name, bool is_replay);
 int   get_chosen_game_num(int total_num_of_games);

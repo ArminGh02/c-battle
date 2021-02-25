@@ -89,10 +89,7 @@ int seek_player_by_name(const char *name, FILE *saved_players) {
 
 
 void main_menu(Player player1) {
-    Game *game = (Game *) malloc(sizeof(Game));
-    if (game == NULL) handle_error();
-    game->player1 = player1;
-    game->turn = -1;
+    Game *game = allocate_an_initial_game(player1);
     char choice = '1';
     for (;;) {
         choice = print_and_clear_menu(choice, MAIN_MENU);
@@ -102,21 +99,23 @@ void main_menu(Player player1) {
                 *game = create_game(game->player1, choice == '1' ? true : false);
                 play_the_game(game, false);
                 break;
-            case '3': {
-                Game *temp = game;
-                if ((game = load_game(game->player1.name, false)) != NULL) {
-                    play_the_game(game, true);
-                    free_game_pointer(game);
-                }
-                game = temp;
-                break;
-            }
+            case '3': resume_previous_games(game->player1.name); break;
             case '4': battle_log(game->player1.name); break;
             case '5': scoreboard(); break;
             case '6': settings_menu(&game->player1); break;
             case '0': free_game_pointer(game); exit(EXIT_SUCCESS);
         }
     }
+}
+
+Game *allocate_an_initial_game(Player player1) {
+    Game *game = (Game *) malloc(sizeof(Game));
+    if (game == NULL) handle_error();
+
+    game->player1 = player1;
+    game->turn = NOT_STARTED_GAME;
+
+    return game;
 }
 
 char print_and_clear_menu(char choice, enum Menu menu) {
@@ -390,6 +389,14 @@ void set_color(int color) {
 }
 
 
+void resume_previous_games(char *player_name) {
+    Game *game = (Game *) malloc(sizeof(Game));
+    if ((game = load_game(player_name, false)) != NULL) {
+        play_the_game(game, true);
+        free_game_pointer(game);
+    }
+}
+
 Game *load_game(char *player1_name, bool is_replay) {
     int total_num_of_games = display_saved_games(player1_name, is_replay);
     if (total_num_of_games == 0) {
@@ -431,8 +438,8 @@ int display_saved_games(char *player1_name, bool is_replay) {
                 + (long) sizeof(Ship) * (game.player1.remaining_ships + game.player2.remaining_ships), SEEK_CUR);
     }
     putchar('\n');
-    fclose(saved_games);
 
+    fclose(saved_games);
     return game_counter - 1;
 }
 
