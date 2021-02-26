@@ -8,7 +8,7 @@
 #include <conio.h>
 #include "main.h"
 
-int map_size, num_of_ships;
+int map_size, ships_count;
 
 int main() {
     system("cls");
@@ -62,7 +62,7 @@ Player create_player(const char *name) {
 }
 
 Settings set_defaults() {
-    Settings settings = {.map_size = 10, .num_of_ships = 10};
+    Settings settings = {.map_size = 10, .ships_count = 10};
 
     settings.lengths_of_ships[0] = 4;
     settings.lengths_of_ships[1] = settings.lengths_of_ships[2] = 3;
@@ -240,7 +240,7 @@ Game create_game(Player player1, bool is_vs_bot) {
 
     game.player1.ships = load_settings(player1.settings);
     game.player2.ships = copy_ships_list(game.player1.ships);
-    game.player1.remaining_ships = game.player2.remaining_ships = num_of_ships;
+    game.player1.remaining_ships = game.player2.remaining_ships = ships_count;
 
     do_the_maps_allocations(&game.player1, &game.player2);
 
@@ -253,18 +253,18 @@ struct tm get_date() {
 }
 
 Ship *load_settings(Settings settings) {
-    set_map_size_and_num_of_ships(settings);
+    set_map_size_and_ships_count(settings);
     return create_list_of_ships(settings.lengths_of_ships);
 }
 
-void set_map_size_and_num_of_ships(Settings settings) {
+void set_map_size_and_ships_count(Settings settings) {
     map_size = settings.map_size;
-    num_of_ships = settings.num_of_ships;
+    ships_count = settings.ships_count;
 }
 
 Ship *create_list_of_ships(const int *lengths_of_ships) {
     Ship *ships = NULL;
-    for (int i = 0; i < num_of_ships; ++i)
+    for (int i = 0; i < ships_count; ++i)
         add_ship(&ships, lengths_of_ships[i]);
 
     return ships;
@@ -412,7 +412,7 @@ Game *load_game(char *player1_name, bool is_replay) {
     if (saved_games == NULL) handle_error();
     Game *game = find_chosen_game(saved_games, player1_name, choice, is_replay);
 
-    set_map_size_and_num_of_ships(game->player1.settings);
+    set_map_size_and_ships_count(game->player1.settings);
     do_the_maps_allocations(&game->player1, &game->player2);
     is_replay ? prepare_players_of_replay(game, saved_games)
               : prepare_players_of_loaded_game(game, saved_games, player1_name);
@@ -484,7 +484,7 @@ void prepare_players_of_loaded_game(Game *game, FILE *saved_games, char *player1
 }
 
 void prepare_players_of_replay(Game *game, FILE *saved_games) {
-    game->player1.remaining_ships = game->player2.remaining_ships = game->player1.settings.num_of_ships;
+    game->player1.remaining_ships = game->player2.remaining_ships = game->player1.settings.ships_count;
     game->turn = 1;
     game->shoots_counter = 0;
 
@@ -721,12 +721,12 @@ bool is_refused() {
 void auto_place_ships(Player *player) {
     int remained_squares = map_size * map_size;
     Ship *ship = player->ships;
-    for (int i = 0; i < num_of_ships; ++i, ship = ship->next_ship) {
+    for (int i = 0; i < ships_count; ++i, ship = ship->next_ship) {
         if (ship->len == 1) {
             ship->stern = ship->bow = rand_square(player->revealed_map, remained_squares);
             reveal_ship(*ship, player->revealed_map, 'S');
         } else {
-            int num_of_placeable_dirs;
+            int placeable_dirs_count;
             do {
                 ship->bow = rand_square(player->revealed_map, remained_squares);
 
@@ -734,12 +734,12 @@ void auto_place_ships(Player *player) {
                 enum Placeability placeable_dirs[] = {NOT_PLACEABLE, PLACEABLE, PLACEABLE, NOT_PLACEABLE};
                 find_placeable_dirs(ship->bow, placeable_dirs, player->revealed_map, ship->len - 1);
 
-                if ((num_of_placeable_dirs = count_placeable_dirs(placeable_dirs)) > 0) {
+                if ((placeable_dirs_count = count_placeable_dirs(placeable_dirs)) > 0) {
                     ship->stern =
-                            find_stern(ship->bow, rand_dir(placeable_dirs, num_of_placeable_dirs), ship->len - 1);
+                            find_stern(ship->bow, rand_dir(placeable_dirs, placeable_dirs_count), ship->len - 1);
                     reveal_ship(*ship, player->revealed_map, 'S');
                 }
-            } while (num_of_placeable_dirs == 0);
+            } while (placeable_dirs_count == 0);
         }
         remained_squares = count_char(player->revealed_map, '?');
     }
@@ -804,9 +804,9 @@ int count_placeable_dirs(const enum Placeability directions[]) {
     return count;
 }
 
-enum Direction rand_dir(const enum Placeability directions[], int num_of_placeable_dirs) {
+enum Direction rand_dir(const enum Placeability directions[], int placeable_dirs_count) {
     enum Direction i;
-    int random_dir = rand() % num_of_placeable_dirs + 1;
+    int random_dir = rand() % placeable_dirs_count + 1;
     for (i = UP; random_dir--; ++i)
         while (directions[i] == NOT_PLACEABLE) ++i;
 
@@ -836,7 +836,7 @@ int count_char(char **map, char c) {
 void manually_place_ships(Player *player) {
     do {
         Ship *ship = player->ships;
-        for (int i = 0; i < num_of_ships;) {
+        for (int i = 0; i < ships_count;) {
             display_screen_for_placing(*player);
 
             char chosen_bow[30], chosen_stern[30];
@@ -1047,7 +1047,7 @@ void delete_ship(Ship **ships_head, Square bow) {
 
 int win_bonus(const int *lengths_of_ships) {
     int bonus = 0, max_len = max_len_of_ships(lengths_of_ships, false);
-    for (int i = 0; i < num_of_ships; ++i)
+    for (int i = 0; i < ships_count; ++i)
         bonus += (5 * max_len / lengths_of_ships[i]) / 2;
 
     return bonus;
@@ -1061,7 +1061,7 @@ int max_len_of_ships(const int *lengths_of_ships, bool is_the_game_ended) {
         return 0;
     }
     if (!is_max_len_calculated) {
-        for (int i = 0; i < num_of_ships; ++i) {
+        for (int i = 0; i < ships_count; ++i) {
             if (max_len < lengths_of_ships[i])
                 max_len = lengths_of_ships[i];
         }
@@ -1225,15 +1225,15 @@ void settings_menu(Player *player) {
 }
 
 void change_map_size(Player *player) {
-    player->settings.map_size = get_map_size_or_num_of_ships(1);
+    player->settings.map_size = get_map_size_or_ships_count(1);
     printf("Length of map changed successfully.\n");
     Sleep(1000);
 }
 
 void change_ships_settings(Player *player) {
-    player->settings.num_of_ships = get_map_size_or_num_of_ships(2);
+    player->settings.ships_count = get_map_size_or_ships_count(2);
 
-    for (int i = 1; i <= player->settings.num_of_ships; ++i) {
+    for (int i = 1; i <= player->settings.ships_count; ++i) {
         printf("Enter length of ship%d: ", i);
         scanf("%d", &player->settings.lengths_of_ships[i]);
         if (player->settings.lengths_of_ships[i] > 7 || player->settings.lengths_of_ships[i] < 1) {
@@ -1247,7 +1247,7 @@ void change_ships_settings(Player *player) {
         }
     }
 
-    qsort(player->settings.lengths_of_ships, player->settings.num_of_ships, sizeof(int), integer_compare_descending);
+    qsort(player->settings.lengths_of_ships, player->settings.ships_count, sizeof(int), integer_compare_descending);
 
     printf("Settings changed successfully.\n");
     Sleep(1000);
@@ -1259,7 +1259,7 @@ int integer_compare_descending(const void *p_int1, const void *p_int2) {
     return (int1 > int2) ? -1 : (int1 == int2) ? 0 : 1;
 }
 
-int get_map_size_or_num_of_ships(int choice_from_settings_menu) {
+int get_map_size_or_ships_count(int choice_from_settings_menu) {
     int value_to_get;
     for (;;) {
         system("cls");

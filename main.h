@@ -10,11 +10,11 @@
 #define RETURN_TO_MAIN_MENU (-1)
 #define NO_PREVIOUS_VALUE (-1)
 
-extern int map_size, num_of_ships;
+extern int map_size, ships_count;
 
 typedef struct {
     int map_size;
-    int num_of_ships;
+    int ships_count;
     int lengths_of_ships[20];
 } Settings;
 typedef struct {
@@ -75,7 +75,7 @@ Player *find_player_with_max_score(FILE *saved_players);
 Game       create_game(Player player1, bool is_vs_bot);
 struct tm  get_date();
 Ship      *load_settings(Settings settings);
-void       set_map_size_and_num_of_ships(Settings settings);
+void       set_map_size_and_ships_count(Settings settings);
 Ship      *create_list_of_ships(const int *lengths_of_ships);
 Ship      *copy_ships_list(Ship *source);
 void       add_ship(Ship **ships_head, int len_of_ship);
@@ -125,7 +125,7 @@ Square         rand_square(char **map, int remained_squares);
 void           reveal_ship(Ship ship, char **map, char S_or_C);
 void           find_placeable_dirs(Square square, enum Placeability *directions, char **map, int len);
 int            count_placeable_dirs(const enum Placeability directions[]);
-enum Direction rand_dir(const enum Placeability directions[], int num_of_placeable_dirs);
+enum Direction rand_dir(const enum Placeability directions[], int placeable_dirs_count);
 Square         find_stern(Square bow, enum Direction chosen_direction, int len);
 int            count_char(char **map, char c);
 
@@ -168,7 +168,7 @@ void settings_menu(Player *player);
 void change_map_size(Player *player);
 void change_ships_settings(Player *player);
 int  integer_compare_descending(const void *p_int1, const void *p_int2);
-int  get_map_size_or_num_of_ships(int choice_from_settings_menu);
+int  get_map_size_or_ships_count(int choice_from_settings_menu);
 
 void hide_cursor();
 void show_cursor();
