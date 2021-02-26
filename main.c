@@ -494,8 +494,8 @@ void prepare_players_of_replay(Game *game, FILE *saved_games) {
     game->player1.ships = create_list_of_ships(game->player1.settings.lengths_of_ships);
     game->player2.ships = copy_ships_list(game->player1.ships);
 
-    restore_ships(&game->player1.ships, (const char **) game->player1.revealed_map);
-    restore_ships(&game->player2.ships, (const char **) game->player2.revealed_map);
+    restore_ships(game->player1.ships, (const char **) game->player1.revealed_map);
+    restore_ships(game->player2.ships, (const char **) game->player2.revealed_map);
 }
 
 void load_4_maps_of_game(Game *game, FILE *saved_games) {
@@ -510,8 +510,8 @@ void fread_map(char **map, FILE *saved_games) {
         fread(map[i], sizeof(char), map_size, saved_games);
 }
 
-void restore_ships(Ship **ships_head, const char **map) {
-    for (Ship *ship = *ships_head; ship != NULL; restore_ships_with_equal_length(&ship, map));
+void restore_ships(Ship *ships_head, const char **map) {
+    for (; ships_head != NULL; restore_ships_with_equal_length(&ships_head, map));
 }
 
 void restore_ships_with_equal_length(Ship **ship, const char **map) {
@@ -604,7 +604,7 @@ void replay(Game game) {
         Sleep(100);
 
         update_game(&game, game.shoots[game.shoots_counter]);
-        control_turns(&game, game.shoots[game.shoots_counter++]);
+        switch_turn(&game, game.shoots[game.shoots_counter++]);
     }
     display_screen_for_guessing(game.player1, game.player2, true);
 
@@ -626,22 +626,8 @@ void play_the_game(Game *game, bool is_a_loaded_game) {
 
 int game_loop(Game *game) {
     while (!is_game_ended(game->player1.ships, game->player2.ships)) {
-        if (game->turn % 2 ||!game->player2.is_bot) {
-            display_screen_for_guessing(game->player1, game->player2, false);
-
-            char command[50];
-            get_command(game->player1, game->player2, command, game->turn);
-
-            if (strcmpi(command, "pause") == 0) {
-                if (get_choice_from_pause_menu(game) == RETURN_TO_MAIN_MENU) return RETURN_TO_MAIN_MENU;
-            } else if (is_placeable_square(game->turn % 2 ? game->player2.concealed_map : game->player1.concealed_map,
-                                           command, &game->shoots[game->shoots_counter])) {
-                update_game(game, game->shoots[game->shoots_counter]);
-                control_turns(game, game->shoots[game->shoots_counter++]);
-            } else {
-                printf("Invalid shoot or syntax. Please try again.\n");
-                Sleep(1000);
-            }
+        if (is_human_turn(game->turn, !game->player2.is_bot)) {
+            if (control_player_turn(game) == RETURN_TO_MAIN_MENU) return RETURN_TO_MAIN_MENU;
         } else
             play_for_bot(game);
     }
@@ -652,6 +638,30 @@ int game_loop(Game *game) {
 
 bool is_game_ended(Ship *player1_ships, Ship *player2_ships) {
     return player1_ships == NULL || player2_ships == NULL;
+}
+
+bool is_human_turn(int turn, bool player2_is_human) {
+    return turn % 2 == 1 || player2_is_human;
+}
+
+int control_player_turn(Game *game) {
+    display_screen_for_guessing(game->player1, game->player2, false);
+
+    char command[50];
+    get_command(game->player1, game->player2, command, game->turn);
+
+    if (strcmpi(command, "pause") == 0) {
+        if (get_choice_from_pause_menu(game) == RETURN_TO_MAIN_MENU) return RETURN_TO_MAIN_MENU;
+    } else if (is_placeable_square(game->turn % 2 ? game->player2.concealed_map : game->player1.concealed_map,
+                                   command, &game->shoots[game->shoots_counter])) {
+        update_game(game, game->shoots[game->shoots_counter]);
+        switch_turn(game, game->shoots[game->shoots_counter++]);
+    } else {
+        printf("Invalid shoot or syntax. Please try again.\n");
+        Sleep(1000);
+    }
+
+    return 0;
 }
 
 void get_command(Player player1, Player player2, char command[], int turn) {
@@ -725,35 +735,35 @@ void auto_place_ships(Player *player) {
         if (ship->len == 1) {
             ship->stern = ship->bow = rand_square(player->revealed_map, remained_squares);
             reveal_ship(*ship, player->revealed_map, 'S');
-        } else {
-            int placeable_dirs_count;
-            do {
-                ship->bow = rand_square(player->revealed_map, remained_squares);
+        } else
+            auto_place_ship_longer_than_1(player, ship, remained_squares);
 
-                // I have assumed that the stern is always righter or downer than the bow.
-                enum Placeability placeable_dirs[] = {NOT_PLACEABLE, PLACEABLE, PLACEABLE, NOT_PLACEABLE};
-                find_placeable_dirs(ship->bow, placeable_dirs, player->revealed_map, ship->len - 1);
-
-                if ((placeable_dirs_count = count_placeable_dirs(placeable_dirs)) > 0) {
-                    ship->stern =
-                            find_stern(ship->bow, rand_dir(placeable_dirs, placeable_dirs_count), ship->len - 1);
-                    reveal_ship(*ship, player->revealed_map, 'S');
-                }
-            } while (placeable_dirs_count == 0);
-        }
         remained_squares = count_char(player->revealed_map, '?');
     }
+}
+
+void auto_place_ship_longer_than_1(const Player *player, Ship *ship, int remained_squares) {
+    int placeable_dirs_count;
+    do {
+        ship->bow = rand_square(player->revealed_map, remained_squares);
+
+        // I have assumed that the stern is always righter or downer than the bow.
+        enum Placeability placeable_dirs[] = {NOT_PLACEABLE, PLACEABLE, PLACEABLE, NOT_PLACEABLE};
+        find_placeable_dirs(ship->bow, placeable_dirs, player->revealed_map, ship->len - 1);
+
+        if ((placeable_dirs_count = count_placeable_dirs(placeable_dirs)) > 0) {
+            ship->stern =
+                    find_stern(ship->bow, rand_dir(placeable_dirs, placeable_dirs_count), ship->len - 1);
+            reveal_ship(*ship, player->revealed_map, 'S');
+        }
+    } while (placeable_dirs_count == 0);
 }
 
 Square rand_square(char **map, int remained_squares) {
     int random_num = rand() % remained_squares;
     for (int row = 0; row < map_size; ++row) {
-        for (int col = 0; col < map_size; ++col) {
-            if (map[row][col] == '?') {
-                if (random_num == 0) return (Square) {row, col};
-                random_num--;
-            }
-        }
+        for (int col = 0; col < map_size; ++col)
+            if (map[row][col] == '?' && random_num-- == 0) return (Square) {row, col};
     }
 }
 
@@ -805,10 +815,11 @@ int count_placeable_dirs(const enum Placeability directions[]) {
 }
 
 enum Direction rand_dir(const enum Placeability directions[], int placeable_dirs_count) {
-    enum Direction i;
     int random_dir = rand() % placeable_dirs_count + 1;
-    for (i = UP; random_dir--; ++i)
-        while (directions[i] == NOT_PLACEABLE) ++i;
+
+    enum Direction i = UP;
+    for (; random_dir != 0; ++i)
+        if (directions[i] == PLACEABLE) random_dir--;
 
     return i - 1;
 }
@@ -919,7 +930,7 @@ void play_for_bot(Game *game) {
     Square shoot = shoot_for_bot(game->player1.concealed_map);
     game->shoots[game->shoots_counter++] = shoot;
 
-    control_turns(game, shoot);
+    switch_turn(game, shoot);
 
     display_screen_for_guessing(game->player1, game->player2, false);
     apply_changes(&game->player1, shoot, NULL, game->player1.settings.lengths_of_ships);
@@ -1037,10 +1048,7 @@ void delete_ship(Ship **ships_head, Square bow) {
         for (; ship->next_ship->bow.row != bow.row || ship->next_ship->bow.col != bow.col; ship = ship->next_ship);
 
         temp = ship->next_ship;
-        if (ship->next_ship->next_ship == NULL)
-            ship->next_ship = NULL;
-        else
-            ship->next_ship = ship->next_ship->next_ship;
+        ship->next_ship = ship->next_ship->next_ship == NULL ? NULL : ship->next_ship->next_ship;
     }
     free(temp);
 }
@@ -1071,7 +1079,7 @@ int max_len_of_ships(const int *lengths_of_ships, bool is_the_game_ended) {
     return max_len;
 }
 
-void control_turns(Game *game, Square shoot) {
+void switch_turn(Game *game, Square shoot) {
     if (game->turn % 2 ? game->player2.revealed_map[shoot.row][shoot.col] == 'W'
                        : game->player1.revealed_map[shoot.row][shoot.col] == 'W')
         game->turn++;
@@ -1233,8 +1241,8 @@ void change_map_size(Player *player) {
 void change_ships_settings(Player *player) {
     player->settings.ships_count = get_map_size_or_ships_count(2);
 
-    for (int i = 1; i <= player->settings.ships_count; ++i) {
-        printf("Enter length of ship%d: ", i);
+    for (int i = 0; i < player->settings.ships_count; ++i) {
+        printf("Enter length of ship%d: ", i + 1);
         scanf("%d", &player->settings.lengths_of_ships[i]);
         if (player->settings.lengths_of_ships[i] > 7 || player->settings.lengths_of_ships[i] < 1) {
             printf(player->settings.lengths_of_ships[i] > 7

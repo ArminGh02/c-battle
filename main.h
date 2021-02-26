@@ -101,7 +101,7 @@ void  prepare_players_of_loaded_game(Game *game, FILE *saved_games, char *player
 void  prepare_players_of_replay(Game *game, FILE *saved_games);
 void  load_4_maps_of_game(Game *game, FILE *saved_games);
 void  fread_map(char **map, FILE *saved_games);
-void  restore_ships(Ship **ships_head, const char **map);
+void  restore_ships(Ship *ships_head, const char **map);
 void  restore_ships_with_equal_length(Ship **ship, const char **map);
 Ship *load_ships_list(FILE *saved_games, int remaining_ships);
 int   load_score(const char *player1_name, const char *player_to_load_name);
@@ -112,6 +112,8 @@ void replay(Game game);
 void play_the_game(Game *game, bool is_a_loaded_game);
 int  game_loop(Game *game);
 bool is_game_ended(Ship *player1_ships, Ship *player2_ships);
+bool is_human_turn(int turn, bool player2_is_human);
+int  control_player_turn(Game *game);
 void get_command(Player player1, Player player2, char command[], int turn);
 
 void how_to_place_ships(Player *player);
@@ -121,6 +123,7 @@ void           clear_map(char **map);
 void           fill_empty_squares_with_water(char **map);
 bool           is_refused();
 void           auto_place_ships(Player *player);
+void           auto_place_ship_longer_than_1(const Player *player, Ship *ship, int remained_squares);
 Square         rand_square(char **map, int remained_squares);
 void           reveal_ship(Ship ship, char **map, char S_or_C);
 void           find_placeable_dirs(Square square, enum Placeability *directions, char **map, int len);
@@ -150,7 +153,7 @@ void delete_ship(Ship **ships_head, Square bow);
 int  win_bonus(const int *lengths_of_ships);
 int  max_len_of_ships(const int *lengths_of_ships, bool is_the_game_ended);
 
-void control_turns(Game *game, Square shoot);
+void switch_turn(Game *game, Square shoot);
 
 int  get_choice_from_pause_menu(Game *game);
 void ask_to_save_game(Game game);
