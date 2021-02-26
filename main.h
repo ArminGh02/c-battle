@@ -48,7 +48,7 @@ typedef struct {
 } Game;
 
 enum Menu {MAIN_MENU, PAUSE_MENU, SETTINGS_MENU};
-enum Directions {UP, RIGHT, DOWN, LEFT};
+enum Direction {UP, RIGHT, DOWN, LEFT};
 enum Placeability {NOT_PLACEABLE, PLACEABLE};
 
 void say_goodbye();
@@ -116,18 +116,18 @@ void get_command(Player player1, Player player2, char command[], int turn);
 
 void how_to_place_ships(Player *player);
 
-void   auto_arrange_map(Player *player);
-void   clear_map(char **map);
-void   fill_empty_squares_with_water(char **map);
-bool   is_refused();
-void   auto_place_ships(Player *player);
-Square rand_square(char **map, int remained_squares);
-void   reveal_ship(Ship ship, char **map, char S_or_C);
-void   find_placeable_dirs(Square square, enum Placeability *directions, char **map, int len);
-int    count_placeable_dirs(const enum Placeability directions[]);
-enum   Directions rand_dir(const enum Placeability directions[], int num_of_placeable_dirs);
-Square find_stern(Square bow, enum Directions chosen_direction, int len);
-int    count_char(char **map, char c);
+void           auto_arrange_map(Player *player);
+void           clear_map(char **map);
+void           fill_empty_squares_with_water(char **map);
+bool           is_refused();
+void           auto_place_ships(Player *player);
+Square         rand_square(char **map, int remained_squares);
+void           reveal_ship(Ship ship, char **map, char S_or_C);
+void           find_placeable_dirs(Square square, enum Placeability *directions, char **map, int len);
+int            count_placeable_dirs(const enum Placeability directions[]);
+enum Direction rand_dir(const enum Placeability directions[], int num_of_placeable_dirs);
+Square         find_stern(Square bow, enum Direction chosen_direction, int len);
+int            count_char(char **map, char c);
 
 void manually_place_ships(Player *player);
 void get_bow_and_stern(char bow[], char stern[], int ship_len, int ship_num);

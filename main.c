@@ -798,14 +798,14 @@ void find_placeable_dirs(Square square, enum Placeability *directions, char **ma
 
 int count_placeable_dirs(const enum Placeability directions[]) {
     int count = 0;
-    for (enum Directions i = 0; i < 4; ++i)
+    for (enum Direction i = 0; i < 4; ++i)
         if (directions[i] == PLACEABLE) ++count;
 
     return count;
 }
 
-enum Directions rand_dir(const enum Placeability directions[], int num_of_placeable_dirs) {
-    enum Directions i;
+enum Direction rand_dir(const enum Placeability directions[], int num_of_placeable_dirs) {
+    enum Direction i;
     int random_dir = rand() % num_of_placeable_dirs + 1;
     for (i = UP; random_dir--; ++i)
         while (directions[i] == NOT_PLACEABLE) ++i;
@@ -813,7 +813,7 @@ enum Directions rand_dir(const enum Placeability directions[], int num_of_placea
     return i - 1;
 }
 
-Square find_stern(Square bow, enum Directions chosen_direction, int len) {
+Square find_stern(Square bow, enum Direction chosen_direction, int len) {
     switch (chosen_direction) {
         case UP: return (Square) {bow.row - len, bow.col};
         case RIGHT: return (Square) {bow.row, bow.col + len};
