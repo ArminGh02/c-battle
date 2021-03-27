@@ -47,13 +47,32 @@ typedef struct {
   Square    shoots[150];
 } Game;
 
-enum Menu {MAIN_MENU, PAUSE_MENU, SETTINGS_MENU};
-enum Direction {UP, RIGHT, DOWN, LEFT};
-enum Placeability {NOT_PLACEABLE, PLACEABLE};
+enum MapCell {
+    WATER = 'W',
+    SHIP = 'S',
+    EXPLOSION = 'E',
+    CAPSIZED_SHIP = 'C'
+};
+enum Menu {
+    MAIN_MENU,
+    PAUSE_MENU,
+    SETTINGS_MENU
+};
+enum Direction {
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT
+};
+enum Placeability {
+    NOT_PLACEABLE,
+    PLACEABLE
+};
 
-void say_goodbye();
+void  say_goodbye();
+char *getPlayerName();
 
-Player   load_player(const char *name, bool is_welcome_message_needed);
+Player   load_player(char *name, bool is_welcome_message_needed);
 Player   create_player(const char *name);
 Settings set_defaults();
 int      seek_player_by_name(const char *name, FILE *saved_players);
@@ -104,7 +123,7 @@ void  fread_map(char **map, FILE *saved_games);
 void  restore_ships(Ship *ships_head, const char **map);
 void  restore_ships_with_equal_length(Ship **ship, const char **map);
 Ship *load_ships_list(FILE *saved_games, int remaining_ships);
-int   load_score(const char *player1_name, const char *player_to_load_name);
+int   load_score(char *player1_name, char *player_to_load_name);
 
 void battle_log(char *player_name);
 void replay(Game game);
@@ -125,7 +144,7 @@ bool           is_refused();
 void           auto_place_ships(Player *player);
 void           auto_place_ship_longer_than_1(const Player *player, Ship *ship, int remained_squares);
 Square         rand_square(char **map, int remained_squares);
-void           reveal_ship(Ship ship, char **map, char S_or_C);
+void           reveal_ship(Ship ship, char **map, enum MapCell ship_sign);
 void           find_placeable_dirs(Square square, enum Placeability *directions, char **map, int len);
 int            count_placeable_dirs(const enum Placeability directions[]);
 enum Direction rand_dir(const enum Placeability directions[], int placeable_dirs_count);
