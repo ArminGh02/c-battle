@@ -27,7 +27,7 @@ void say_goodbye() {
     Sleep(2000);
 }
 
-char *getPlayerName() {
+char *get_player_name() {
     char *name = (char *) malloc(sizeof(char) * MAX_LEN_OF_NAME);
     if (name == NULL) handle_error();
     gets(name);
