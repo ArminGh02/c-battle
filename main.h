@@ -5,10 +5,24 @@
 #include <stdbool.h>
 #include <time.h>
 
+#ifdef WIN32
+
+#define CLEAR_SCREEN "cls"
+#define SLEEP(milliseconds) \
+    Sleep(milliseconds)
+#define GET_CHAR() \
+    getch()
+
+#endif
+
 #define MAX_LEN_OF_NAME 35
 #define NOT_STARTED_GAME 0
 #define RETURN_TO_MAIN_MENU (-1)
 #define NO_PREVIOUS_VALUE (-1)
+
+#define PLAYERS_FILENAME "Saved players.bin"
+#define REPLAYS_FILENAME "Saved replays.bin"
+#define GAMES_FILENAME "Saved games.bin"
 
 extern int map_size, ships_count;
 
@@ -38,20 +52,21 @@ typedef struct {
     Settings settings;
 } Player;
 typedef struct {
-  int       turn;
-  struct tm date;
-  char      name[MAX_LEN_OF_NAME];
-  Player    player1;
-  Player    player2;
-  int       shoots_counter;
-  Square    shoots[150];
+    int       turn;
+    struct tm date;
+    char      name[MAX_LEN_OF_NAME];
+    Player    player1;
+    Player    player2;
+    int       shoots_counter;
+    Square    shoots[150];
 } Game;
 
 enum MapCell {
     WATER = 'W',
     SHIP = 'S',
     EXPLOSION = 'E',
-    CAPSIZED_SHIP = 'C'
+    CAPSIZED_SHIP = 'C',
+    NOT_REVEALED = '?'
 };
 enum Menu {
     MAIN_MENU,
@@ -70,7 +85,7 @@ enum Placeability {
 };
 
 void  say_goodbye();
-char *getPlayerName();
+char *get_player_name();
 
 Player   load_player(char *name, bool is_welcome_message_needed);
 Player   create_player(const char *name);
@@ -79,8 +94,7 @@ int      seek_player_by_name(const char *name, FILE *saved_players);
 
 void  main_menu(Player player1);
 Game *allocate_an_initial_game(Player player1);
-char  print_and_clear_menu(char choice, enum Menu menu);
-char  print_menu(enum Menu);
+int   print_menu(int choice, enum Menu menu);
 
 void free_game_pointer(Game* game);
 void free_ships(Ship* ships);
@@ -105,17 +119,19 @@ void display_screen_for_placing(Player player);
 void display_screen_for_guessing(Player player1, Player player2, bool is_replay);
 void gotoxy(int x, int y);
 void print_header();
-void print_date();
+void print_date(struct tm date);
 void display_map(char **map, char *name, int score);
 void print_columns();
 void put_colored_char(char c);
-void set_color(int color);
+
+void set_text_color(int color);
 
 void  resume_previous_games(char *player_name);
 Game *load_game(char *player1_name, bool is_replay);
 int   display_saved_games(char *player1_name, bool is_replay);
 int   get_chosen_game_num(int total_num_of_games);
 Game *find_chosen_game(FILE *saved_games, char *player1_name, int choice, bool is_replay);
+void  fseek_to_next_game(Game *game, FILE *saved_games, bool is_replay);
 void  prepare_players_of_loaded_game(Game *game, FILE *saved_games, char *player1_name);
 void  prepare_players_of_replay(Game *game, FILE *saved_games);
 void  load_4_maps_of_game(Game *game, FILE *saved_games);

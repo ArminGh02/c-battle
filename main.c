@@ -4,43 +4,49 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+
+#ifdef WIN32
 #include <windows.h>
 #include <conio.h>
+#endif
+
 #include "main.h"
 
 int map_size, ships_count;
 
 int main() {
+    system(CLEAR_SCREEN);
     atexit(say_goodbye);
-    system("cls");
+    srand(time(NULL));
+
     printf("Sea battle\n"
            "By Armin Ghorbanian\n\n"
            "What shall the history call you? ");
-
-    srand(time(NULL));
-    main_menu(load_player(getPlayerName(), true));
+    main_menu(load_player(get_player_name(), true));
+    return 0;
 }
 
 void say_goodbye() {
-    system("cls");
+    system(CLEAR_SCREEN);
     printf("Hope to see you soon.\n");
-    Sleep(2000);
+    SLEEP(2000);
 }
 
 char *get_player_name() {
     char *name = (char *) malloc(sizeof(char) * MAX_LEN_OF_NAME);
     if (name == NULL) handle_error();
+    fflush(stdin);
     gets(name);
     return name;
 }
 
 
 Player load_player(char *name, bool is_welcome_message_needed) {
-    FILE *saved_players = fopen("Saved players.bin", "r+b");
+    FILE *saved_players = fopen(PLAYERS_FILENAME, "r+b");
     if (saved_players == NULL || seek_player_by_name(name, saved_players) == -1) {
-        fclose(saved_players);
+        if (saved_players != NULL) fclose(saved_players);
         printf("Welcome to sea battle %s!\n", name);
-        Sleep(2000);
+        SLEEP(2000);
         return create_player(name);
     }
 
@@ -48,7 +54,7 @@ Player load_player(char *name, bool is_welcome_message_needed) {
     fread(&player, sizeof(Player), 1, saved_players);
     fclose(saved_players);
     if (is_welcome_message_needed) printf("Welcome back %s.\n", name);
-    Sleep(2000);
+    SLEEP(2000);
 
     free(name);
     return player;
@@ -59,7 +65,7 @@ Player create_player(const char *name) {
     strcpy(player.name, name);
     player.settings = set_defaults();
 
-    FILE *saved_players = fopen("Saved players.bin", "ab");
+    FILE *saved_players = fopen(PLAYERS_FILENAME, "ab");
     if (saved_players == NULL) handle_error();
     fwrite(&player, sizeof(player), 1, saved_players);
     fclose(saved_players);
@@ -96,20 +102,19 @@ int seek_player_by_name(const char *name, FILE *saved_players) {
 
 void main_menu(Player player1) {
     Game *game = allocate_an_initial_game(player1);
-    char choice = '1';
+    int choice = 1;
     for (;;) {
-        choice = print_and_clear_menu(choice, MAIN_MENU);
-        switch (choice) {
-            case '1':
-            case '2':
-                *game = create_game(game->player1, choice == '1' ? true : false);
+        switch (choice = print_menu(choice, MAIN_MENU)) {
+            case 1:
+            case 2:
+                *game = create_game(game->player1, choice == 1 ? true : false);
                 play_the_game(game, false);
                 break;
-            case '3': resume_previous_games(game->player1.name); break;
-            case '4': battle_log(game->player1.name); break;
-            case '5': scoreboard(); break;
-            case '6': settings_menu(&game->player1); break;
-            case '0': free_game_pointer(game); exit(EXIT_SUCCESS);
+            case 3: resume_previous_games(game->player1.name); break;
+            case 4: battle_log(game->player1.name);            break;
+            case 5: scoreboard();                              break;
+            case 6: settings_menu(&game->player1);             break;
+            case 0: free_game_pointer(game);                   return;
         }
     }
 }
@@ -124,25 +129,29 @@ Game *allocate_an_initial_game(Player player1) {
     return game;
 }
 
-char print_and_clear_menu(char choice, enum Menu menu) {
-    if ('1' <= choice && choice <= (menu == MAIN_MENU ? '6' : menu == PAUSE_MENU ? '4' : '3')) {
-        system("cls");
-        return (char) print_menu(menu);
+int print_menu(int choice, enum Menu menu) {
+    if (1 <= choice && choice <= (menu == MAIN_MENU ? 6 : menu == PAUSE_MENU ? 4 : 3)) {
+        system(CLEAR_SCREEN);
+        printf(menu == MAIN_MENU ? "1.Play vs computer\n"
+                                   "2.Play vs a friend\n"
+                                   "3.Load a game\n"
+                                   "4.Battle log\n"
+                                   "5.Scoreboard\n"
+                                   "6.Settings\n"
+                                   "0.Exit\n"
+                                 : menu == PAUSE_MENU ? "1.Main menu\n"
+                                                        "2.Save\n"
+                                                        "3.Resume\n"
+                                                        "4.Quit game\n"
+                                                      : "1.Change map size.\n"
+                                                        "2.Change ships settings.\n"
+                                                        "3.Restore default settings.\n"
+                                                        "4.Main menu.\n");
+        if ('1' <= (choice = GET_CHAR()) && choice <= (menu == MAIN_MENU ? '6' : '4')) system(CLEAR_SCREEN);
+        return choice - '0';
     }
 
-    return (char) getch();
-}
-
-char print_menu(enum Menu menu) {
-    char choice;
-    printf(menu == MAIN_MENU ? "1.Play vs computer\n2.Play vs a friend\n3.Load a game\n4.Battle log\n5.Scoreboard\n"
-                               "6.Settings\n0.Exit\n"
-                             : menu == PAUSE_MENU ? "1.Main menu\n2.Save\n3.Resume\n4.Quit game\n"
-                                                  : "1.Change map size.\n2.Change ships settings.\n"
-                                                    "3.Restore default settings.\n4.Main menu.\n");
-    choice = (char) getch();
-    if ('1' <= choice && choice <= (menu == MAIN_MENU ? '6' : '4')) system("cls");
-    return choice;
+    return GET_CHAR() - '0';
 }
 
 void free_game_pointer(Game *game) {
@@ -178,7 +187,7 @@ void free_map(char **map) {
 
 
 void scoreboard() {
-    FILE *saved_players = fopen("Saved players.bin", "r+b");
+    FILE *saved_players = fopen(PLAYERS_FILENAME, "r+b");
     FILE *temp = fopen("tmp.bin", "w+b");
     if (saved_players == NULL || temp == NULL) handle_error();
 
@@ -191,7 +200,7 @@ void scoreboard() {
     remove("tmp.bin");
 
     printf("Press any key to return to main menu. ");
-    getch();
+    GET_CHAR();
 }
 
 void copy_players_file(FILE *dest, FILE *source) {
@@ -206,7 +215,7 @@ void copy_players_file(FILE *dest, FILE *source) {
 void print_scoreboard(FILE *saved_players) {
     Player *player;
     for (int i = 1; (player = find_player_with_max_score(saved_players)) != NULL; ++i) {
-        printf("%2d- %-25s score: %d\n", i, player->name, player->score);
+        printf("%2d- %-*s score: %d\n", i, MAX_LEN_OF_NAME, player->name, player->score);
 
         player->score = -1;
         seek_player_by_name(player->name, saved_players);
@@ -238,10 +247,7 @@ Game create_game(Player player1, bool is_vs_bot) {
         game.player2.is_bot = true;
     } else {
         printf("What shall your friend be called throughout the history? ");
-        char name[35];
-        fflush(stdin);
-        gets(name);
-        game.player2 = load_player(name, true);
+        game.player2 = load_player(get_player_name(), true);
     }
 
     game.player1.ships = load_settings(player1.settings);
@@ -292,10 +298,10 @@ void add_ship(Ship **ships_head, int len_of_ship) {
 }
 
 void do_the_maps_allocations(Player *player1, Player *player2) {
-    player1->revealed_map = allocate_map('?');
-    player2->revealed_map = allocate_map('?');
-    player1->concealed_map = allocate_map('?');
-    player2->concealed_map = allocate_map('?');
+    player1->revealed_map = allocate_map(NOT_REVEALED);
+    player2->revealed_map = allocate_map(NOT_REVEALED);
+    player1->concealed_map = allocate_map(NOT_REVEALED);
+    player2->concealed_map = allocate_map(NOT_REVEALED);
 }
 
 char **allocate_map(char initial_value) {
@@ -337,24 +343,26 @@ void display_screen_for_guessing(Player player1, Player player2, bool is_replay)
     display_map(player1.concealed_map, player1.name, is_replay ? -1 : player1.score);
     display_map(player2.concealed_map, player2.name, player2.is_bot || is_replay ? -1 : player2.score);
     printf("%100s\n%100s\n%100s", "", "", "");                  // Deletes three previously printed lines.
-    gotoxy(0, 2 * (map_size) + 9);
+    gotoxy(0, 2 * map_size + 9);
     if (!is_replay) show_cursor();
 }
 
 void gotoxy(int x, int y) {
+#ifdef WIN32
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), (COORD) {x, y});
+#endif
 }
 
 void print_header() {
     int line_len = printf("Subject: Sea Battle%*sDate: ", map_size * 2, "") + 9;
-    print_date();
+    print_date(get_date());
+    putchar('\n');
     while (line_len--) putchar('-');
     printf("\n\n");
 }
 
-void print_date() {
-    struct tm date = get_date();
-    printf("%d/%d/%d\n", date.tm_mon + 1, date.tm_mday, date.tm_year + 1900);
+void print_date(struct tm date) {
+    printf("%d/%d/%d", date.tm_mon + 1, date.tm_mday, date.tm_year + 1900);
 }
 
 void display_map(char **map, char *name, int score) {
@@ -379,12 +387,25 @@ void print_columns() {
 }
 
 void put_colored_char(char c) {
-    set_color(c == WATER ? 1 : c == SHIP ? 10 : c == EXPLOSION ? 4 : c == CAPSIZED_SHIP ? 6 : 8);
+#ifdef WIN32
+    enum ColorCmd {
+        BLUE = 1, GREEN = 10, RED = 4, YELLOW = 6, GREY = 8, WHITE = 7
+    };
+    switch (c) {
+        case WATER: set_text_color(BLUE); break;
+        case SHIP: set_text_color(GREEN); break;
+        case EXPLOSION: set_text_color(RED); break;
+        case CAPSIZED_SHIP: set_text_color(YELLOW); break;
+        case NOT_REVEALED: set_text_color(GREY); break;
+        default: set_text_color(WHITE);
+    }
     putchar(c);
-    set_color(7);
+    set_text_color(WHITE);
+#endif
 }
 
-void set_color(int color) {
+void set_text_color(int color) {
+#ifdef WIN32
     WORD wColor;
     HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -392,6 +413,7 @@ void set_color(int color) {
         wColor = (csbi.wAttributes & 0xF0) + (color & 0x0F);
         SetConsoleTextAttribute(hStdOut, wColor);
     }
+#endif
 }
 
 
@@ -407,14 +429,14 @@ Game *load_game(char *player1_name, bool is_replay) {
     int total_num_of_games = display_saved_games(player1_name, is_replay);
     if (total_num_of_games == 0) {
         printf(is_replay ? "You haven't completed any battle yet.\n" : "No saved games were found.\n");
-        Sleep(1000);
+        SLEEP(1000);
         return NULL;
     }
 
     int choice = get_chosen_game_num(total_num_of_games);
-    system("cls");
+    system(CLEAR_SCREEN);
 
-    FILE *saved_games = fopen(is_replay ? "Saved replays.bin" : "Saved games.bin", "rb");
+    FILE *saved_games = fopen(is_replay ? REPLAYS_FILENAME : GAMES_FILENAME, "rb");
     if (saved_games == NULL) handle_error();
     Game *game = find_chosen_game(saved_games, player1_name, choice, is_replay);
 
@@ -428,20 +450,18 @@ Game *load_game(char *player1_name, bool is_replay) {
 }
 
 int display_saved_games(char *player1_name, bool is_replay) {
-    FILE *saved_games = fopen(is_replay ? "Saved replays.bin" : "Saved games.bin", "rb");
+    FILE *saved_games = fopen(is_replay ? REPLAYS_FILENAME : GAMES_FILENAME, "rb");
     if (saved_games == NULL) return 0;
 
     int game_counter = 1;
-    for (Game game; fread(&game, sizeof(Game), 1, saved_games) == 1;) {
+    for (Game game;
+         fread(&game, sizeof(Game), 1, saved_games) == 1;
+         fseek_to_next_game(&game, saved_games, is_replay)) {
         if (strcmp(game.player1.name, player1_name) == 0 || strcmp(game.player2.name, player1_name) == 0) {
-            printf("%2d- %-15s %d/%d/%d\n\t%s vs %s\n", game_counter++, game.name, game.date.tm_mon + 1,
-                   game.date.tm_mday, game.date.tm_year + 1900, game.player1.name, game.player2.name);
+            printf("%2d-%-*s ", game_counter++, MAX_LEN_OF_NAME, game.name);
+            print_date(game.date);
+            printf(" - %s vs %s\n", game.player1.name, game.player2.name);
         }
-        fseek(saved_games,
-              is_replay
-              ? 2 * (long) sizeof(char) * game.player1.settings.map_size * game.player1.settings.map_size
-              : 4 * (long) sizeof(char) * game.player1.settings.map_size * game.player1.settings.map_size \
-                + (long) sizeof(Ship) * (game.player1.remaining_ships + game.player2.remaining_ships), SEEK_CUR);
     }
     putchar('\n');
 
@@ -462,21 +482,18 @@ int get_chosen_game_num(int total_num_of_games) {
 Game *find_chosen_game(FILE *saved_games, char *player1_name, int choice, bool is_replay) {
     Game *game = (Game *) malloc(sizeof(Game));
     if (game == NULL) handle_error();
-    for (int i = 0; i < choice;) {
-        fread(game, sizeof(Game), 1, saved_games);
+    for (int i = 0; fread(game, sizeof(Game), 1, saved_games); fseek_to_next_game(game, saved_games, is_replay)) {
         if (strcmp(game->player1.name, player1_name) == 0 || strcmp(game->player2.name, player1_name) == 0)
-            i++;
-
-        if (i != choice) {
-            fseek(saved_games,
-                  is_replay
-                  ? 2 * (long) sizeof(char) * game->player1.settings.map_size * game->player1.settings.map_size
-                  : 4 * (long) sizeof(char) * game->player1.settings.map_size * game->player1.settings.map_size \
-                    + (long) sizeof(Ship) * (game->player1.remaining_ships + game->player2.remaining_ships), SEEK_CUR);
-        }
+            if (++i == choice) return game;
     }
+}
 
-    return game;
+void fseek_to_next_game(Game *game, FILE *saved_games, bool is_replay) {
+    long sizeof_map = (long) sizeof(char) * game->player1.settings.map_size * game->player1.settings.map_size;
+    long offset = is_replay ? 2 * sizeof_map
+                            : 4 * sizeof_map
+                              + (long) sizeof(Ship) * (game->player1.remaining_ships + game->player2.remaining_ships);
+    fseek(saved_games, offset, SEEK_CUR);
 }
 
 void prepare_players_of_loaded_game(Game *game, FILE *saved_games, char *player1_name) {
@@ -536,7 +553,7 @@ void restore_ships_with_equal_length(Ship **ship, const char **map) {
                     continue;
                 }
                 if (row + (*ship)->len - 1 < map_size && map[row + (*ship)->len - 1][col] == SHIP
-                    && (row + (*ship)->len > map_size - 1 || map[row + (*ship)->len][col] == WATER)) {
+                        && (row + (*ship)->len > map_size - 1 || map[row + (*ship)->len][col] == WATER)) {
                     int k = row + 1, found = 1;
                     for (int l = (*ship)->len - 2; l--; ++k) {
                         if (map[k][col] != SHIP) found = 0;
@@ -554,7 +571,7 @@ void restore_ships_with_equal_length(Ship **ship, const char **map) {
                     }
                 }
                 if (col + (*ship)->len - 1 < map_size && map[row][col + (*ship)->len - 1] == SHIP
-                    && (col + (*ship)->len > map_size - 1 || map[row][col + (*ship)->len] == WATER)) {
+                        && (col + (*ship)->len > map_size - 1 || map[row][col + (*ship)->len] == WATER)) {
                     int copy_of_col = col++, found = 1;
                     for (int l = (*ship)->len - 2; l--; ++col) {
                         if (map[row][col] != SHIP) found = 0;
@@ -606,7 +623,7 @@ void replay(Game game) {
     hide_cursor();
     while (!is_game_ended(game.player1.ships, game.player2.ships)) {
         display_screen_for_guessing(game.player1, game.player2, true);
-        Sleep(100);
+        SLEEP(100);
 
         update_game(&game, game.shoots[game.shoots_counter]);
         switch_turn(&game, game.shoots[game.shoots_counter++]);
@@ -616,7 +633,7 @@ void replay(Game game) {
     show_cursor();
     game_over_message(game);
     printf("\nPress any key to return to main menu. ");
-    getch();
+    GET_CHAR();
 }
 
 
@@ -655,7 +672,7 @@ int control_player_turn(Game *game) {
     char command[50];
     get_command(game->player1, game->player2, command, game->turn);
 
-    if (strcmpi(command, "pause") == 0) {
+    if (strcmp(command, "pause") == 0) {
         if (get_choice_from_pause_menu(game) == RETURN_TO_MAIN_MENU) return RETURN_TO_MAIN_MENU;
     } else if (is_placeable_square(game->turn % 2 ? game->player2.concealed_map : game->player1.concealed_map,
                                    command, &game->shoots[game->shoots_counter])) {
@@ -663,7 +680,7 @@ int control_player_turn(Game *game) {
         switch_turn(game, game->shoots[game->shoots_counter++]);
     } else {
         printf("Invalid shoot or syntax. Please try again.\n");
-        Sleep(1000);
+        SLEEP(1000);
     }
 
     return 0;
@@ -676,22 +693,22 @@ void get_command(Player player1, Player player2, char command[], int turn) {
 }
 
 void how_to_place_ships(Player *player) {
-    system("cls");
+    system(CLEAR_SCREEN);
     printf("Place ships %s:\n"
            "1.Auto\n"
            "2.Manually\n", player->name);
     for (;;) {
-        char choice = (char) getch();
+        int choice = GET_CHAR();
         switch (choice) {
             case '1':
-                system("cls");
+                system(CLEAR_SCREEN);
                 auto_arrange_map(player);
-                system("cls");
+                system(CLEAR_SCREEN);
                 return;
             case '2':
-                system("cls");
+                system(CLEAR_SCREEN);
                 manually_place_ships(player);
-                system("cls");
+                system(CLEAR_SCREEN);
                 return;
         }
     }
@@ -711,23 +728,23 @@ void auto_arrange_map(Player *player) {
 }
 
 void clear_map(char **map) {
-    if (map[0][0] != '?') {
+    if (map[0][0] != NOT_REVEALED) {
         for (int row = 0; row < map_size; ++row)
-            memset(map[row], '?', sizeof(char) * map_size);
+            memset(map[row], NOT_REVEALED, sizeof(char) * map_size);
     }
 }
 
 void fill_empty_squares_with_water(char **map) {
     for (int row = 0; row < map_size; ++row) {
         for (int col = 0; col < map_size; ++col)
-            if (map[row][col] == '?') map[row][col] = WATER;
+            if (map[row][col] == NOT_REVEALED) map[row][col] = WATER;
     }
 }
 
 bool is_refused() {
     printf("Confirm? (y/n) ");
     for (;;) {
-        char choice = (char) getch();
+        int choice = GET_CHAR();
         if (choice == 'y' || choice == 'Y') return false;
         if (choice == 'n' || choice == 'N') return true;
     }
@@ -743,7 +760,7 @@ void auto_place_ships(Player *player) {
         } else
             auto_place_ship_longer_than_1(player, ship, remained_squares);
 
-        remained_squares = count_char(player->revealed_map, '?');
+        remained_squares = count_char(player->revealed_map, NOT_REVEALED);
     }
 }
 
@@ -768,7 +785,7 @@ Square rand_square(char **map, int remained_squares) {
     int random_num = rand() % remained_squares;
     for (int row = 0; row < map_size; ++row) {
         for (int col = 0; col < map_size; ++col)
-            if (map[row][col] == '?' && random_num-- == 0) return (Square) {row, col};
+            if (map[row][col] == NOT_REVEALED && random_num-- == 0) return (Square) {row, col};
     }
 }
 
@@ -791,25 +808,25 @@ void reveal_ship(Ship ship, char **map, enum MapCell ship_sign) {
 void find_placeable_dirs(Square square, enum Placeability *directions, char **map, int len) {
     if (directions[UP] == PLACEABLE && square.row - len >= 0) {
         for (int l = len, row = square.row - 1; l--; --row)
-            if (map[row][square.col] != '?') directions[UP] = NOT_PLACEABLE;
+            if (map[row][square.col] != NOT_REVEALED) directions[UP] = NOT_PLACEABLE;
     } else
         directions[UP] = NOT_PLACEABLE;
 
     if (directions[RIGHT] == PLACEABLE && square.col + len < map_size) {
         for (int l = len, col = square.col + 1; l--; ++col)
-            if (map[square.row][col] != '?') directions[RIGHT] = NOT_PLACEABLE;
+            if (map[square.row][col] != NOT_REVEALED) directions[RIGHT] = NOT_PLACEABLE;
     } else
         directions[RIGHT] = NOT_PLACEABLE;
 
     if (directions[DOWN] == PLACEABLE && square.row + len < map_size) {
         for (int l = len, row = square.row + 1; l--; ++row)
-            if (map[row][square.col] != '?') directions[DOWN] = NOT_PLACEABLE;
+            if (map[row][square.col] != NOT_REVEALED) directions[DOWN] = NOT_PLACEABLE;
     } else
         directions[DOWN] = NOT_PLACEABLE;
 
     if (directions[LEFT] == PLACEABLE && square.col - len >= 0) {
         for (int l = len, col = square.col - 1; l--; --col)
-            if (map[square.row][col] != '?') directions[LEFT] = NOT_PLACEABLE;
+            if (map[square.row][col] != NOT_REVEALED) directions[LEFT] = NOT_PLACEABLE;
     } else
         directions[LEFT] = NOT_PLACEABLE;
 }
@@ -856,7 +873,7 @@ void manually_place_ships(Player *player) {
     do {
         clear_map(player->revealed_map);
         Ship *ship = player->ships;
-        for (int i = 0; i < ships_count;) {
+        for (int i = 0; i < ships_count; ++i) {
             display_screen_for_placing(*player);
 
             char chosen_bow[30], chosen_stern[30];
@@ -865,11 +882,11 @@ void manually_place_ships(Player *player) {
             if (is_valid_ship_placement(ship, player->revealed_map, chosen_bow, chosen_stern)) {
                 if (square_compare(ship->stern, ship->bow) == 1) square_swap(&ship->bow, &ship->stern);
                 reveal_ship(*ship, player->revealed_map, SHIP);
-                i++;
                 ship = ship->next_ship;
             } else {
                 printf("Invalid placement or syntax. Please try again.\n");
-                Sleep(2000);
+                SLEEP(2000);
+                i--;
             }
         }
         fill_empty_squares_with_water(player->revealed_map);
@@ -895,11 +912,11 @@ bool is_valid_ship_placement(Ship *ship, char **map, char *chosen_bow, char *cho
     if (is_vertical(ship->bow, ship->stern) == 1) {
         if (ship->stern.row - ship->bow.row != ship->len - 1) return false;
         for (int row = ship->bow.row + 1; row < ship->stern.row; ++row)
-            if (map[row][ship->bow.col] != '?') return false;
+            if (map[row][ship->bow.col] != NOT_REVEALED) return false;
     } else if (is_vertical(ship->bow, ship->stern) == -1) {
         if (ship->stern.col - ship->bow.col != ship->len - 1) return false;
         for (int col = ship->bow.col + 1; col < ship->stern.col; ++col)
-            if (map[ship->bow.row][col] != '?') return false;
+            if (map[ship->bow.row][col] != NOT_REVEALED) return false;
     } else
         return false;
 
@@ -918,7 +935,7 @@ bool is_placeable_square(char **map, char *chosen_square, Square *square_coordin
             || --square_coordinates->col >= map_size
             || square_coordinates->row < 0
             || square_coordinates->col < 0
-            || map[square_coordinates->row][square_coordinates->col] != '?')
+            || map[square_coordinates->row][square_coordinates->col] != NOT_REVEALED)
         return false;
 
     return true;
@@ -943,15 +960,15 @@ void play_for_bot(Game *game) {
 
     display_screen_for_guessing(game->player1, game->player2, false);
     apply_changes(&game->player1, shoot, NULL, game->player1.settings.lengths_of_ships);
-    Sleep(1000);
+    SLEEP(1000);
     display_screen_for_guessing(game->player1, game->player2, false);
     printf("Computer shot at %c%d.\n", shoot.row + 65, shoot.col + 1);
-    Sleep(1000);
+    SLEEP(1000);
 }
 
 Square shoot_for_bot(char **opponent_map) {
     switch (count_char(opponent_map, EXPLOSION)) {
-        case 0: return rand_square(opponent_map, count_char(opponent_map, '?'));
+        case 0: return rand_square(opponent_map, count_char(opponent_map, NOT_REVEALED));
         case 1: {
             Square explosion_square = find_explosion(opponent_map, NO_PREVIOUS_VALUE, NO_PREVIOUS_VALUE);
 
@@ -978,18 +995,18 @@ Square follow_explosions(char **map) {
     if (is_vertical(explos1, explos2) == 1) {
         for (; explos2.row + 1 < map_size && map[explos2.row + 1][explos1.col] == EXPLOSION; ++explos2.row);
 
-        if (explos1.row - 1 < 0 || map[explos1.row - 1][explos1.col] != '?')
+        if (explos1.row - 1 < 0 || map[explos1.row - 1][explos1.col] != NOT_REVEALED)
             return (Square) {explos2.row + 1, explos1.col};
-        else if (explos2.row + 1 > map_size - 1 || map[explos2.row + 1][explos2.col] != '?')
+        else if (explos2.row + 1 > map_size - 1 || map[explos2.row + 1][explos2.col] != NOT_REVEALED)
             return (Square) {explos1.row - 1, explos1.col};
         else
             return (rand() % 2 ? (Square) {explos2.row + 1, explos1.col} : (Square) {explos1.row - 1, explos1.col});
     } else {
         for (; explos2.col + 1 < map_size && map[explos1.row][explos2.col + 1] == EXPLOSION; ++explos2.col);
 
-        if (explos1.col - 1 < 0 || map[explos1.row][explos1.col - 1] != '?')
+        if (explos1.col - 1 < 0 || map[explos1.row][explos1.col - 1] != NOT_REVEALED)
             return (Square) {explos1.row, explos2.col + 1};
-        else if (explos2.col + 1 > map_size - 1 || map[explos2.row][explos2.col + 1] != '?')
+        else if (explos2.col + 1 > map_size - 1 || map[explos2.row][explos2.col + 1] != NOT_REVEALED)
             return (Square) {explos1.row, explos1.col - 1};
         else
             return (rand() % 2 ? (Square) {explos1.row, explos2.col + 1} : (Square) {explos1.row, explos1.col - 1});
@@ -1096,18 +1113,18 @@ void switch_turn(Game *game, Square shoot) {
 
 
 int get_choice_from_pause_menu(Game *game) {
-    char choice = '1';
+    int choice = 1;
     for (;;) {
-        choice = print_and_clear_menu(choice, PAUSE_MENU);
-        if ('1' <= choice && choice <= '4') update_players_in_file(&game->player1, &game->player2);
+        choice = print_menu(choice, PAUSE_MENU);
+        if (1 <= choice && choice <= 4) update_players_in_file(&game->player1, &game->player2);
         switch (choice) {
-            case '1':
+            case 1:
                 max_len_of_ships(game->player1.settings.lengths_of_ships, true);
                 ask_to_save_game(*game);
                 return RETURN_TO_MAIN_MENU;
-            case '2': save_game(*game, false); break;
-            case '3': return 3;
-            case '4': 
+            case 2: save_game(*game, false); break;
+            case 3: return 3;
+            case 4:
                 ask_to_save_game(*game);
                 free_game_pointer(game);
                 exit(EXIT_SUCCESS);
@@ -1119,15 +1136,15 @@ void ask_to_save_game(Game game) {
     printf("1.Save game\n"
            "2.Surrender\n");
     for (;;) {
-        char choice = (char) getch();
+        int choice = GET_CHAR();
         if (choice == '1') {
             save_game(game, false);
             return;
         } else if (choice == '2') {
-            system("cls");
+            system(CLEAR_SCREEN);
             printf(game.player2.is_bot ? "You surrendered to the power of computer!\n"
                                        : "You surrendered to the power of the rival!\n");
-            Sleep(2000);
+            SLEEP(2000);
             return;
         }
     }
@@ -1138,7 +1155,7 @@ void save_game(Game game, bool is_replay) {
     fflush(stdin);
     gets(game.name);
 
-    FILE *saved_games = fopen(is_replay ? "Saved replays.bin" : "Saved games.bin", "ab");
+    FILE *saved_games = fopen(is_replay ? REPLAYS_FILENAME : GAMES_FILENAME, "ab");
     if (saved_games == NULL) handle_error();
     fwrite(&game, sizeof(game), 1, saved_games);
 
@@ -1152,7 +1169,7 @@ void save_game(Game game, bool is_replay) {
 
     fclose(saved_games);
     printf("Game saved.\n");
-    Sleep(1000);
+    SLEEP(1000);
 }
 
 void save_ships_list(Game game, FILE *saved_games) {
@@ -1185,7 +1202,7 @@ void end_game(Game *game) {
 }
 
 void update_players_in_file(Player *player1, Player *player2) {
-    FILE *saved_players = fopen("Saved players.bin", "r+b");
+    FILE *saved_players = fopen(PLAYERS_FILENAME, "r+b");
     if (saved_players == NULL) handle_error();
     seek_player_by_name(player1->name, saved_players);
     fwrite(player1, sizeof(Player), 1, saved_players);
@@ -1207,12 +1224,12 @@ void game_over_message(Game game) {
 
 void game_over_menu(Game *game) {
     printf("Press any key to continue. ");
-    getch();
-    system("cls");
+    GET_CHAR();
+    system(CLEAR_SCREEN);
     printf("1.Main menu\n"
            "2.Quit\n");
     for (;;) {
-        char choice = (char) getch();
+        int choice = GET_CHAR();
         if (choice == '1') {
             return;
         } else if (choice == '2') {
@@ -1224,27 +1241,26 @@ void game_over_menu(Game *game) {
 
 
 void settings_menu(Player *player) {
-    char choice = '1';
+    int choice = 1;
     for (;;) {
-        choice = print_and_clear_menu(choice, SETTINGS_MENU);
-        switch (choice) {
-            case '1': change_map_size(player); break;
-            case '2': change_ships_settings(player); break;
-            case '3':
+        switch (choice = print_menu(choice, SETTINGS_MENU)) {
+            case 1: change_map_size(player); break;
+            case 2: change_ships_settings(player); break;
+            case 3:
                 player->settings = set_defaults();
                 printf("Done.\n");
-                Sleep(1000);
+                SLEEP(1000);
                 break;
-            case '4': return;
+            case 4: return;
         }
-        if ('1' <= choice && choice <= '3') update_players_in_file(player, NULL);
+        if (1 <= choice && choice <= 3) update_players_in_file(player, NULL);
     }
 }
 
 void change_map_size(Player *player) {
     player->settings.map_size = get_map_size_or_ships_count(1);
     printf("Length of map changed successfully.\n");
-    Sleep(1000);
+    SLEEP(1000);
 }
 
 void change_ships_settings(Player *player) {
@@ -1257,17 +1273,15 @@ void change_ships_settings(Player *player) {
             printf(player->settings.lengths_of_ships[i] > 7
                    ? "Maximum length of ship is 7.\n"
                    : "As you might know, length of a ship is a natural number!\n");
-            Sleep(2000);
-            system("cls");
+            SLEEP(2000);
+            system(CLEAR_SCREEN);
             i--;
-            continue;
         }
     }
-
     qsort(player->settings.lengths_of_ships, player->settings.ships_count, sizeof(int), integer_compare_descending);
 
     printf("Settings changed successfully.\n");
-    Sleep(1000);
+    SLEEP(1000);
 }
 
 int integer_compare_descending(const void *p_int1, const void *p_int2) {
@@ -1279,27 +1293,29 @@ int integer_compare_descending(const void *p_int1, const void *p_int2) {
 int get_map_size_or_ships_count(int choice_from_settings_menu) {
     int value_to_get;
     for (;;) {
-        system("cls");
+        system(CLEAR_SCREEN);
         printf(choice_from_settings_menu == 1 ? "Enter new length of map: " : "Enter new number of ships: ");
         scanf("%d", &value_to_get);
 
         if (value_to_get < 7 || value_to_get > 20) {
             printf(value_to_get > 20 ? "Maximum value is 20.\n" : "Minimum value is 7.\n");
-            Sleep(1000);
-            continue;
-        }
-
-        return value_to_get;
+            SLEEP(1000);
+        } else
+            return value_to_get;
     }
 }
 
 
 void hide_cursor() {
+#ifdef WIN32
     SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &(CONSOLE_CURSOR_INFO) {.dwSize = 100, .bVisible = FALSE});
+#endif
 }
 
 void show_cursor() {
+#ifdef WIN32
     SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &(CONSOLE_CURSOR_INFO) {.dwSize = 10, .bVisible = TRUE});
+#endif
 }
 
 
